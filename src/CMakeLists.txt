@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 add_library(netscope_core STATIC
     # --- core ---
-    #core/Message.cpp
+    core/Message.cpp
     #core/TcpClient.cpp
     #core/TcpServer.cpp
     #core/WsClient.cpp
@@ -50,7 +50,8 @@ set(APP_SOURCES
     #resources/resources.qrc   # раскомментировать когда появятся ресурсы
 )
 
-add_executable(netscope_app ${APP_SOURCES})
+add_executable(netscope_app ${APP_SOURCES}
+    core/message.h core/message.cpp)
 
 target_link_libraries(netscope_app
     PRIVATE
