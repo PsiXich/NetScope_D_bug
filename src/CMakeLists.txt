@@ -53,7 +53,8 @@ set(APP_SOURCES
 add_executable(netscope_app ${APP_SOURCES}
     core/message.h core/message.cpp
     core/tcpclient.h
-    core/tcpclient.cpp)
+    core/tcpclient.cpp
+    core/tcpserver.h)
 
 target_link_libraries(netscope_app
     PRIVATE
