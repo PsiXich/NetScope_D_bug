@@ -55,7 +55,9 @@ add_executable(netscope_app ${APP_SOURCES}
     core/tcpclient.h core/tcpclient.cpp
     core/tcpserver.h core/tcpserver.cpp
     core/WsClient.h
-    core/wsclient.cpp)
+    core/wsclient.cpp
+    core/connectionmanager.cpp
+    core/connectionmanager.h)
 
 target_link_libraries(netscope_app
     PRIVATE

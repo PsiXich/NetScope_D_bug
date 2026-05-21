@@ -1,0 +1,189 @@
+#ifndef NETSCOPE_CONNECTIONMANAGER_H
+#define NETSCOPE_CONNECTIONMANAGER_H
+
+#include "Message.h"
+#include "TcpClient.h"
+#include "TcpServer.h"
+#include "WsClient.h"
+
+#include <QObject>
+#include <QMap>
+
+// ---------------------------------------------------------------------------
+// ConnectionInfo — метаданные о соединении для отображения в UI
+//
+// Plain struct — не хранит указатели на сетевые объекты,
+// только то что нужно UI для отображения списка соединений
+// Сетевые объекты живут в приватных QMap внутри ConnectionManager
+// ---------------------------------------------------------------------------
+struct ConnectionInfo
+{
+    enum class Type {
+        TcpClient,
+        TcpServer,
+        WebSocket
+    };
+
+    int     id          { -1 };
+    Type    type        { Type::TcpClient };
+    QString displayName;        // "TCP Client: 127.0.0.1:8080"
+    bool    isActive    { false };
+
+    // Тип в виде строки — для лога и UI-лейблов
+    QString typeString() const
+    {
+        switch (type) {
+        case Type::TcpClient:  return QStringLiteral("TCP Client");
+        case Type::TcpServer:  return QStringLiteral("TCP Server");
+        case Type::WebSocket:  return QStringLiteral("WebSocket");
+        }
+        return QStringLiteral("Unknown");
+    }
+};
+
+// ---------------------------------------------------------------------------
+// ConnectionManager — единственное место где создаются и хранятся
+// все сетевые объекты приложения
+//
+// Ответственность:
+//   - создавать TcpClient / TcpServer / WsClient с уникальными id
+//   - агрегировать сигналы всех соединений в единый поток сигналов
+//   - предоставлять UI список соединений через ConnectionInfo
+//   - удалять соединения и освобождать ресурсы
+//
+// Паттерн: Facade + Registry.
+//   UI работает только с ConnectionManager, не с сетевыми классами напрямую
+//   Это единственная точка входа для всей сетевой логики
+//
+// todo: добавление нового протокола (UDP, MQTT) =
+//   новый класс + новый метод create*() здесь + новый тип в ConnectionInfo
+// ---------------------------------------------------------------------------
+class ConnectionManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit ConnectionManager(QObject *parent = nullptr);
+    ~ConnectionManager() override;
+
+    // --- Фабричные методы ---
+    // Возвращают id созданного соединения
+    // Объект создаётся и сразу регистрируется — id валиден до removeConnection()
+
+    // Создать TCP-клиент Не подключается автоматически —
+    // вызови connectTcpClient() после настройки параметров
+    int createTcpClient();
+
+    // Создать TCP-сервер Не начинает слушать автоматически
+    int createTcpServer();
+
+    // Создать WebSocket-клиен. Не подключается автоматически
+    int createWsClient();
+
+    // --- Управление соединениями ---
+
+    // Подключить TCP-клиент к хосту
+    bool connectTcpClient(int id, const QString &host, quint16 port);
+
+    // Отключить TCP-клиент
+    bool disconnectTcpClient(int id);
+
+    // Запустить TCP-сервер
+    bool startTcpServer(int id,
+                        const QHostAddress &address = QHostAddress::Any,
+                        quint16 port = 0);
+
+    // Остановить TCP-сервер
+    bool stopTcpServer(int id);
+
+    // Подключить WebSocket-клиент
+    bool connectWsClient(int id, const QUrl &url);
+
+    // Отключить WebSocket-клиент
+    bool disconnectWsClient(int id);
+
+    // --- Отправка данных ---
+
+    bool sendToTcpClient(int id, const QByteArray &data);
+    bool sendToTcpServerClient(int id, qintptr descriptor, const QByteArray &data);
+    bool broadcastTcpServer(int id, const QByteArray &data);
+    bool sendWsText(int id, const QString &text);
+    bool sendWsBinary(int id, const QByteArray &data);
+
+    // --- Настройка параметров ---
+
+    void setTcpClientReconnectInterval(int id, int ms);
+    void setWsClientPingInterval(int id, int ms);
+    void setWsClientReconnectInterval(int id, int ms);
+
+    // --- Удаление ---
+
+    // Удалить соединение по id Корректно закрывает перед удалением
+    bool removeConnection(int id);
+
+    // Удалить все соединения
+    void removeAll();
+
+    // --- Запросы состояния ---
+
+    // Список всех зарегистрированных соединений для UI
+    QList<ConnectionInfo> connections() const;
+
+    // Информация о конкретном соединении
+    ConnectionInfo connectionInfo(int id) const;
+
+    bool hasTcpClient(int id) const;
+    bool hasTcpServer(int id) const;
+    bool hasWsClient(int id)  const;
+
+signals:
+    // Все сообщения от всех соединений — единый поток для MessageLogModel
+    void messageReceived(const Message &message);
+
+    // Соединение добавлено / удалено — для ConnectionListModel
+    void connectionAdded(const ConnectionInfo &info);
+    void connectionRemoved(int id);
+
+    // Мета-изменения конкретных соединений — UI обновляет статус
+    void connectionInfoChanged(int id);
+
+private slots:
+    // Агрегаторы сигналов от сетевых объектов
+    void onTcpClientConnected(int id);
+    void onTcpClientDisconnected(int id);
+    void onTcpServerListeningChanged(bool listening);
+    void onWsClientConnected(int id);
+    void onWsClientDisconnected(int id);
+
+    // Единый обработчик messageReceived от всех типов
+    void onMessageReceived(const Message &message);
+
+private:
+    // Генератор уникальных id — простой инкремент
+    int nextId();
+
+    // Подключение сигналов от TcpClient к слотам менеджера
+    void connectTcpClientSignals(TcpClient *client);
+
+    // Подключение сигналов от TcpServer
+    void connectTcpServerSignals(TcpServer *server);
+
+    // Подключение сигналов от WsClient
+    void connectWsClientSignals(WsClient *client);
+
+    // Обновить ConnectionInfo.isActive и emit connectionInfoChanged()
+    void updateActiveState(int id, bool active);
+
+    // Реестры объектов — владеем через QMap + parent (QObject)
+    QMap<int, TcpClient *>  m_tcpClients;
+    QMap<int, TcpServer *>  m_tcpServers;
+    QMap<int, WsClient  *>  m_wsClients;
+
+    // Метаданные для UI — отдельно от объектов чтобы не тянуть
+    // сетевые заголовки туда где нужна только отображаемая информация
+    QMap<int, ConnectionInfo> m_infos;
+
+    int m_nextId { 0 };
+};
+
+#endif // NETSCOPE_CONNECTIONMANAGER_H
