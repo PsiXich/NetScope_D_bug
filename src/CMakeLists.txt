@@ -3,11 +3,11 @@
 # ---------------------------------------------------------------------------
 add_library(netscope_core STATIC
     # --- core ---
-    core/Message.cpp
-    core/TcpClient.cpp
-    core/TcpServer.cpp
-    core/WsClient.cpp
-    core/ConnectionManager.cpp
+    #core/Message.cpp
+    #core/TcpClient.cpp
+    #core/TcpServer.cpp
+    #core/WsClient.cpp
+    #core/ConnectionManager.cpp
 
     # --- models ---
     #models/MessageLogModel.cpp
@@ -56,7 +56,9 @@ add_executable(netscope_app ${APP_SOURCES}
     core/tcpserver.h core/tcpserver.cpp
     core/WsClient.h core/wsclient.cpp
     core/connectionmanager.h core/connectionmanager.cpp
-    models/messagelogmodel.h)
+
+    models/messagelogmodel.h
+    models/messagelogmodel.cpp)
 
 target_link_libraries(netscope_app
     PRIVATE
