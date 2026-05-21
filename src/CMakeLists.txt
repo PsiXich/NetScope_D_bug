@@ -57,11 +57,10 @@ add_executable(netscope_app ${APP_SOURCES}
     core/WsClient.h core/wsclient.cpp
     core/connectionmanager.h core/connectionmanager.cpp
 
-    models/messagelogmodel.h
-    models/messagelogmodel.cpp
-    models/connectionlistmodel.h
-    models/connectionlistmodel.cpp
-    utils/logger.h)
+    models/messagelogmodel.h models/messagelogmodel.cpp
+    models/connectionlistmodel.h models/connectionlistmodel.cpp
+
+    utils/logger.h utils/logger.cpp)
 
 target_link_libraries(netscope_app
     PRIVATE
