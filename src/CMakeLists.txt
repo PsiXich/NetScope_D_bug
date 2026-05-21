@@ -4,8 +4,8 @@
 add_library(netscope_core STATIC
     # --- core ---
     core/Message.cpp
-    #core/TcpClient.cpp
-    #core/TcpServer.cpp
+    core/TcpClient.cpp
+    core/TcpServer.cpp
     #core/WsClient.cpp
     #core/ConnectionManager.cpp
 
@@ -54,7 +54,8 @@ add_executable(netscope_app ${APP_SOURCES}
     core/message.h core/message.cpp
     core/tcpclient.h
     core/tcpclient.cpp
-    core/tcpserver.h)
+    core/tcpserver.h
+    core/tcpserver.cpp)
 
 target_link_libraries(netscope_app
     PRIVATE
