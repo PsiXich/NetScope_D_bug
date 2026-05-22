@@ -60,7 +60,15 @@ add_executable(netscope_app ${APP_SOURCES}
     models/messagelogmodel.h models/messagelogmodel.cpp
     models/connectionlistmodel.h models/connectionlistmodel.cpp
 
-    utils/logger.h utils/logger.cpp)
+    utils/logger.h utils/logger.cpp
+    ui/panels/tcpclientpanel.h
+    ui/panels/tcpclientpanel.cpp
+    ui/panels/tcpserverpanel.h
+    ui/panels/tcpserverpanel.cpp
+    ui/panels/wsclientpanel.h
+    ui/panels/wsclientpanel.cpp
+    ui/widgets/messagelogview.h
+    ui/widgets/messagelogview.cpp)
 
 target_link_libraries(netscope_app
     PRIVATE
