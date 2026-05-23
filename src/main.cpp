@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
                                 .arg(logPath)
                             );
 
-    //MainWindow window;
-    //window.show();
+    MainWindow window;
+    window.show();
 
     const int exitCode = app.exec();
 

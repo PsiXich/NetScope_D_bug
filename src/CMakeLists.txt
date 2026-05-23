@@ -68,7 +68,8 @@ add_executable(netscope_app ${APP_SOURCES}
     ui/panels/wsclientpanel.h
     ui/panels/wsclientpanel.cpp
     ui/widgets/messagelogview.h
-    ui/widgets/messagelogview.cpp)
+    ui/widgets/messagelogview.cpp
+    ui/widgets/hexviewer.h)
 
 target_link_libraries(netscope_app
     PRIVATE
