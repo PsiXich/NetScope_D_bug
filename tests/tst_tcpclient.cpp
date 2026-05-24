@@ -1,17 +1,18 @@
 #include <QTest>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QSignalSpy>
 
 #include "core/TcpClient.h"
 #include "core/Message.h"
 
 // ---------------------------------------------------------------------------
-// EchoServer — вспомогательный TCP-сервер для тестов.
+// EchoServer — вспомогательный TCP-сервер для тестов
 //
 // Живёт только в этом файле — не выносим в helpers/ пока он не нужен
-// в других тестах. Если понадобится в tst_TcpServer.cpp — переносим тогда.
+// в других тестах. Если понадобится в tst_TcpServer.cpp — переносим тогда
 //
-// Поведение: принимает одно соединение, всё полученное отправляет обратно.
+// Поведение: принимает одно соединение, всё полученное отправляет обратно
 // ---------------------------------------------------------------------------
 class EchoServer : public QObject
 {
@@ -104,8 +105,8 @@ private slots:
     void testConnectToUnavailableHost();
 
 private:
-    // Вспомогательный метод: ждём сигнал с таймаутом.
-    // Возвращает true если сигнал пришёл в течение timeoutMs.
+    // Вспомогательный метод: ждём сигнал с таймаутом
+    // Возвращает true если сигнал пришёл в течение timeoutMs
     bool waitForSignal(QObject *sender, const char *signal, int timeoutMs = 2000);
 
     EchoServer  *m_server   { nullptr };
@@ -197,10 +198,10 @@ void TcpClientTest::testSendAndReceiveData()
     const bool sent = m_client->sendData(payload);
     QVERIFY(sent);
 
-    // Ждём входящее сообщение (эхо от сервера).
+    // Ждём входящее сообщение (эхо от сервера)
     // spyMessage уже содержит системное сообщение "Connected" и
     // исходящее сообщение — ждём пока не появится входящее.
-    // Используем wait() в цикле чтобы не зависеть от порядка сигналов.
+    // Используем wait() в цикле чтобы не зависеть от порядка сигналов
     const int maxWaitMs  = 2000;
     const int stepMs     = 50;
     int       elapsed    = 0;
@@ -305,11 +306,11 @@ bool TcpClientTest::waitForSignal(QObject *sender, const char *signal, int timeo
 
 // ---------------------------------------------------------------------------
 // Точка входа QTest
-// QTEST_MAIN разворачивается в main() с QApplication внутри.
-// Для сетевых тестов нужен event loop — QTEST_GUILESS_MAIN не подходит.
+// QTEST_MAIN разворачивается в main() с QApplication внутри
+// Для сетевых тестов нужен event loop — QTEST_GUILESS_MAIN не подходит
 // ---------------------------------------------------------------------------
 QTEST_MAIN(TcpClientTest)
 
 // Включаем MOC-файл сгенерированный AUTOMOC —
 // обязательно в конце .cpp файла теста
-#include "tst_TcpClient.moc"
+#include "tst_tcpclient.moc"

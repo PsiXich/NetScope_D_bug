@@ -7,6 +7,16 @@ function(netscope_add_test)
 
     add_executable(${ARG_NAME} ${ARG_SOURCES})
 
+    # Явно включаем AUTOMOC для каждого тест-таргета
+    # Глобального CMAKE_AUTOMOC недостаточно когда Q_OBJECT объявлен
+    # в .cpp файле — нужен explicit property чтобы CMake гарантированно
+    # запустил moc и сгенерировал .moc файл до компиляции
+    set_target_properties(${ARG_NAME} PROPERTIES
+        AUTOMOC ON
+        AUTOUIC ON
+        AUTORCC ON
+    )
+
     target_link_libraries(${ARG_NAME}
         PRIVATE
             netscope_core
@@ -14,6 +24,7 @@ function(netscope_add_test)
             Qt${QT_VERSION_MAJOR}::Core
             Qt${QT_VERSION_MAJOR}::Network
             Qt${QT_VERSION_MAJOR}::WebSockets
+            Qt${QT_VERSION_MAJOR}::Gui
             netscope_compile_options
     )
 
@@ -35,6 +46,26 @@ endfunction()
 # ---------------------------------------------------------------------------
 
 netscope_add_test(
-    NAME    tst_TcpClient
-    SOURCES tst_TcpClient.cpp
+    NAME    tst_tcpclient
+    SOURCES tst_tcpclient.cpp
 )
+
+#netscope_add_test(
+    #NAME    tst_TcpServer
+    #SOURCES tst_TcpServer.cpp
+#)
+
+#netscope_add_test(
+    #NAME    tst_WsClient
+    #SOURCES tst_WsClient.cpp
+#)
+
+netscope_add_test(
+    NAME    tst_MessageLogModel
+    SOURCES tst_MessageLogModel.cpp
+)
+
+#netscope_add_test(
+    #NAME    tst_ConnectionManager
+    #SOURCES tst_ConnectionManager.cpp
+#)
