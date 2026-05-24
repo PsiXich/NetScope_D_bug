@@ -38,8 +38,8 @@ private slots:
 
     // Обновление списка клиентов по сигналам менеджера
     void onConnectionInfoChanged(int id);
-    void onClientConnected(qintptr descriptor, const QString &displayName);
-    void onClientDisconnected(qintptr descriptor, const QString &displayName);
+    //void onClientConnected(qintptr descriptor, const QString &displayName);
+    //void onClientDisconnected(qintptr descriptor, const QString &displayName);
 
 private:
     void setupUi();

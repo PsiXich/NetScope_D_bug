@@ -424,4 +424,5 @@ void MessageLogModelTest::testSystemMessageHasNoSize()
 // Точка входа
 // ---------------------------------------------------------------------------
 QTEST_MAIN(MessageLogModelTest)
+
 #include "tst_messagelogmodel.moc"

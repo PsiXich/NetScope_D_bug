@@ -311,6 +311,4 @@ bool TcpClientTest::waitForSignal(QObject *sender, const char *signal, int timeo
 // ---------------------------------------------------------------------------
 QTEST_MAIN(TcpClientTest)
 
-// Включаем MOC-файл сгенерированный AUTOMOC —
-// обязательно в конце .cpp файла теста
 #include "tst_tcpclient.moc"
