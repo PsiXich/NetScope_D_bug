@@ -34,8 +34,18 @@ WsClient::WsClient(int connectionId, QObject *parent)
             this, SLOT(onBinaryMessageReceived(QByteArray)));
 
     // error() перегружен — используем старый синтаксис как в TcpClient
-    connect(m_socket, SIGNAL(error(QAbstractSocket::SocketError)),
-            this, SLOT(onError(QAbstractSocket::SocketError)));
+    #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        connect(m_socket, &QWebSocket::errorOccurred,
+                this, &WsClient::onError);
+    #elif QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        // В Qt 6.0–6.4 errorOccurred ещё не было, используем старый error
+        connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
+                this, &WsClient::onError);
+    #else
+        // Qt5
+        connect(m_socket, SIGNAL(error(QAbstractSocket::SocketError)),
+                this, SLOT(onError(QAbstractSocket::SocketError)));
+    #endif
 
     connect(m_socket, SIGNAL(pong(quint64, QByteArray)),
             this, SLOT(onPong(quint64, QByteArray)));

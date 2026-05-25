@@ -22,23 +22,22 @@ TcpClient::TcpClient(int connectionId, QObject *parent)
     // --- Подключение сигналов сокета ---
     // Используем старый синтаксис SIGNAL/SLOT для Qt 5.7 совместимости
     // с перегруженным сигналом error(QAbstractSocket::SocketError)
-    connect(m_socket, SIGNAL(connected()),
-            this, SLOT(onConnected()));
-
-    connect(m_socket, SIGNAL(disconnected()),
-            this, SLOT(onDisconnected()));
-
-    connect(m_socket, SIGNAL(readyRead()),
-            this, SLOT(onReadyRead()));
+    connect(m_socket, &QTcpSocket::connected,      this, &TcpClient::onConnected);
+    connect(m_socket, &QTcpSocket::disconnected,   this, &TcpClient::onDisconnected);
+    connect(m_socket, &QTcpSocket::readyRead,      this, &TcpClient::onReadyRead);
 
     // error() перегружен в Qt5 — строковый синтаксис обходит эту проблему
     // В Qt6 этот сигнал переименован в errorOccurred() — при миграции
     // достаточно поменять строку здесь
-    connect(m_socket, SIGNAL(error(QAbstractSocket::SocketError)),
-            this, SLOT(onSocketError(QAbstractSocket::SocketError)));
+    #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        connect(m_socket, &QAbstractSocket::errorOccurred,
+                this, &TcpClient::onSocketError);
+    #else
+        connect(m_socket, SIGNAL(error(QAbstractSocket::SocketError)),
+                this, SLOT(onSocketError(QAbstractSocket::SocketError)));
+    #endif
 
-    connect(m_reconnectTimer, SIGNAL(timeout()),
-            this, SLOT(onReconnectTimer()));
+    connect(m_reconnectTimer, &QTimer::timeout, this, &TcpClient::onReconnectTimer);
 }
 
 TcpClient::~TcpClient()
@@ -109,14 +108,28 @@ void TcpClient::connectToHost(const QString &host, quint16 port)
 
 void TcpClient::disconnectFromHost()
 {
-    // Помечаем как намеренный разрыв — onDisconnected() не запустит реконнект
     m_intentionalDisconnect = true;
     teardownReconnect();
 
-    if (m_socket->state() != QAbstractSocket::UnconnectedState) {
-        // disconnectFromHost() — мягкое закрытие: ждёт flush буфера
-        // Если сервер не отвечает — сокет закроется по внутреннему таймауту
-        m_socket->disconnectFromHost();
+    QAbstractSocket::SocketState currentState = m_socket->state();
+
+    if (currentState == QAbstractSocket::UnconnectedState) {
+        // Уже отключены
+        setState(State::Disconnected);
+        emit disconnected(m_connectionId);
+        return;
+    }
+
+    if (currentState == QAbstractSocket::ConnectingState) {
+        m_socket->abort();  // прерываем попытку подключения
+    } else {
+        m_socket->disconnectFromHost();  // нормальное отключение
+    }
+
+    // Для тестов и надёжности — сразу обновляем состояние
+    // (реальный сигнал disconnected() может прийти чуть позже)
+    if (m_socket->state() == QAbstractSocket::UnconnectedState) {
+        setState(State::Disconnected);
     }
 }
 
@@ -182,10 +195,11 @@ void TcpClient::onDisconnected()
     emit messageReceived(msg);
     emit disconnected(m_connectionId);
 
-    // Запускаем автореконнект только если разрыв был не намеренным
     if (!m_intentionalDisconnect && m_reconnectInterval > 0) {
         setupReconnect();
     }
+
+    m_intentionalDisconnect = false;   // сбрасываем флаг
 }
 
 void TcpClient::onReadyRead()
@@ -210,8 +224,7 @@ void TcpClient::onReadyRead()
 
 void TcpClient::onSocketError(QAbstractSocket::SocketError error)
 {
-    // QAbstractSocket::RemoteHostClosedError — нормальное закрытие соединения
-    // со стороны сервера Не логируем как ошибку, onDisconnected() справится
+    // RemoteHostClosedError — нормальное закрытие, обрабатывается в onDisconnected()
     if (error == QAbstractSocket::RemoteHostClosedError) {
         return;
     }
@@ -220,6 +233,9 @@ void TcpClient::onSocketError(QAbstractSocket::SocketError error)
 
     qWarning() << "[TcpClient] id=" << m_connectionId
                << "socket error:" << errStr;
+
+    // Важно: при ошибке переводим в Disconnected
+    setState(State::Disconnected);
 
     const Message msg = Message::system(
         m_connectionId,

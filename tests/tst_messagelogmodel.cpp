@@ -173,7 +173,11 @@ void MessageLogModelTest::testRowCountMatchesFiltered()
 void MessageLogModelTest::testDataDisplayRole()
 {
     const QByteArray payload = "Hello";
-    m_model->appendMessage(makeTcpIncoming(42, payload));
+
+    // явно указывая isText = true,
+    // чтобы форматтер модели не превратил строку в Hex
+    const Message msg = Message::incoming(42, Message::Protocol::Tcp, payload, true);
+    m_model->appendMessage(msg);
 
     const QModelIndex idx = m_model->index(0, MessageLogModel::ColId);
     QCOMPARE(idx.data(Qt::DisplayRole).toInt(), 42);
