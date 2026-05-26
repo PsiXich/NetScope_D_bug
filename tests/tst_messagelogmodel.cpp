@@ -67,6 +67,10 @@ private slots:
     void testFilterByDirection();
     void testClearFilters();
 
+    // --- Фильтрация по тексту ---
+    void testFilterByText();
+    void testFilterByTextCaseInsensitive();
+
     // --- Комбинированные фильтры ---
     void testCombinedFilters();
 
@@ -422,6 +426,39 @@ void MessageLogModelTest::testSystemMessageHasNoSize()
     const QModelIndex idx = m_model->index(0, MessageLogModel::ColSize);
     // Системные сообщения не имеют размера — возвращаем invalid QVariant
     QVERIFY(!idx.data(Qt::DisplayRole).isValid());
+}
+
+void MessageLogModelTest::testFilterByText()
+{
+    // 2 подходят под фильтр "error", 2 — нет
+    m_model->appendMessage(makeWsText(0, "Connection timeout error")); // Подходит (текст)
+    m_model->appendMessage(makeWsText(0, "User logged in"));           // Мимо
+    m_model->appendMessage(makeTcpIncoming(0, "fatal_error_code"));    // Подходит (бинарное, но содержит байты "error")
+    m_model->appendMessage(makeTcpIncoming(1, "ping"));                // Мимо
+
+    QSignalSpy spy(m_model, SIGNAL(modelReset()));
+
+    m_model->setFilterText("error");
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(m_model->rowCount(), 2);
+
+    // Убеждаемся, что остались правильные сообщения
+    QVERIFY(m_model->messageAt(0).payload.contains("timeout"));
+    QVERIFY(m_model->messageAt(1).payload.contains("fatal"));
+}
+
+void MessageLogModelTest::testFilterByTextCaseInsensitive()
+{
+    m_model->appendMessage(makeWsText(0, "WARNING: CPU overload"));
+    m_model->appendMessage(makeWsText(0, "Everything is fine"));
+
+    // Фильтр в нижнем регистре, а текст в логе — в верхнем
+    m_model->setFilterText("warning");
+
+    // Для текстовых сообщений (isText = true) поиск должен игнорировать регистр
+    QCOMPARE(m_model->rowCount(), 1);
+    QVERIFY(QString::fromUtf8(m_model->messageAt(0).payload).startsWith("WARNING"));
 }
 
 // ---------------------------------------------------------------------------
