@@ -53,6 +53,10 @@ netscope_add_test(
     SOURCES tst_messagelogmodel.cpp
 )
 
-# netscope_add_test(NAME tst_TcpServer    SOURCES tst_TcpServer.cpp)
+netscope_add_test(
+    NAME    tst_tcpserver
+    SOURCES tst_tcpserver.cpp
+)
+
 # netscope_add_test(NAME tst_WsClient     SOURCES tst_WsClient.cpp)
 # netscope_add_test(NAME tst_ConnectionManager SOURCES tst_ConnectionManager.cpp)
