@@ -245,11 +245,35 @@ void MessageLogModel::setFilterDirection(int direction)
     endResetModel();
 }
 
+QString MessageLogModel::filterText() const
+{
+    return m_filterText;
+}
+
+void MessageLogModel::setFilterText(const QString &text)
+{
+    if(m_filterText == text) {
+        return;
+    }
+
+    m_filterText = text;
+
+    beginResetModel();
+    m_filteredIndices.clear();
+    for (int i = 0; i < m_allMessages.size(); ++i) {
+        if (passesFilter(m_allMessages.at(i))) {
+            m_filteredIndices.append(i);
+        }
+    }
+    endResetModel();
+}
+
 void MessageLogModel::clearFilters()
 {
     m_filterConnectionId = -1;
     m_filterProtocol     = Message::Protocol::Unknown;
     m_filterDirection    = -1;
+    m_filterText.clear();
 
     beginResetModel();
     m_filteredIndices.clear();
@@ -310,6 +334,23 @@ bool MessageLogModel::passesFilter(const Message &message) const
     if (m_filterDirection != -1
         && static_cast<int>(message.direction) != m_filterDirection) {
         return false;
+    }
+
+    // Поиск по тексту
+    if (!m_filterText.isEmpty()) {
+        if (message.isText) {
+            // Для текста ищем строку без учета регистра
+            const QString payloadText = QString::fromUtf8(message.payload);
+            if (!payloadText.contains(m_filterText, Qt::CaseInsensitive)) {
+                return false;
+            }
+        } else {
+            // Для бинарных данных ищем прямое вхождение байтов
+            // (todo добавить поиск по Hex)
+            if (!message.payload.contains(m_filterText.toUtf8())) {
+                return false;
+            }
+        }
     }
 
     return true;

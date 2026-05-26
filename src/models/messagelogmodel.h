@@ -90,6 +90,10 @@ public:
     // Сбросить все фильтры
     void clearFilters();
 
+    // Фильтр по содержимому (поиск по тексту/байтам)
+    QString filterText() const;
+    void setFilterText(const QString &text);
+
 public slots:
     // Добавить сообщение в лог — подключается к ConnectionManager::messageReceived
     void appendMessage(const Message &message);
@@ -123,6 +127,9 @@ private:
     int               m_filterConnectionId{ -1 };
     Message::Protocol m_filterProtocol    { Message::Protocol::Unknown };
     int               m_filterDirection   { -1 };
+
+    // Текст для текстовой фильтрации
+    QString m_filterText;
 };
 
 #endif // NETSCOPE_MESSAGELOGMODEL_H
