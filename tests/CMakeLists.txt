@@ -54,9 +54,13 @@ netscope_add_test(
 )
 
 netscope_add_test(
+    NAME    tst_wsclient
+    SOURCES tst_wsclient.cpp
+)
+
+netscope_add_test(
     NAME    tst_tcpserver
     SOURCES tst_tcpserver.cpp
 )
 
-# netscope_add_test(NAME tst_WsClient     SOURCES tst_WsClient.cpp)
 # netscope_add_test(NAME tst_ConnectionManager SOURCES tst_ConnectionManager.cpp)
