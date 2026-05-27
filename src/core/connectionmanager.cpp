@@ -177,6 +177,14 @@ bool ConnectionManager::disconnectWsClient(int id)
     return true;
 }
 
+QList<ClientSession> ConnectionManager::tcpServerSessions(int id) const
+{
+    if (!m_tcpServers.contains(id)) {
+        return QList<ClientSession>();
+    }
+    return m_tcpServers.value(id)->sessions();
+}
+
 // ---------------------------------------------------------------------------
 // Отправка данных
 // ---------------------------------------------------------------------------
@@ -369,6 +377,27 @@ void ConnectionManager::onMessageReceived(const Message &message)
     emit messageReceived(message);
 }
 
+void ConnectionManager::onServerClientConnected(qintptr descriptor,
+                                                const QString &displayName)
+{
+    // sender() возвращает объект который испустил сигнал — это TcpServer
+    TcpServer *srv = qobject_cast<TcpServer *>(sender());
+    if (!srv) {
+        return;
+    }
+    emit serverClientConnected(srv->connectionId(), descriptor, displayName);
+}
+
+void ConnectionManager::onServerClientDisconnected(qintptr descriptor,
+                                                   const QString &displayName)
+{
+    TcpServer *srv = qobject_cast<TcpServer *>(sender());
+    if (!srv) {
+        return;
+    }
+    emit serverClientDisconnected(srv->connectionId(), descriptor, displayName);
+}
+
 // ---------------------------------------------------------------------------
 // Приватные вспомогательные методы
 // ---------------------------------------------------------------------------
@@ -402,6 +431,12 @@ void ConnectionManager::connectTcpServerSignals(TcpServer *server)
 
     connect(server, SIGNAL(messageReceived(Message)),
             this, SLOT(onMessageReceived(Message)));
+
+    connect(server, SIGNAL(clientConnected(qintptr, QString)),
+            this, SLOT(onServerClientConnected(qintptr, QString)));
+
+    connect(server, SIGNAL(clientDisconnected(qintptr, QString)),
+            this, SLOT(onServerClientDisconnected(qintptr, QString)));
 }
 
 void ConnectionManager::connectWsClientSignals(WsClient *client)

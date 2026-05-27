@@ -136,6 +136,9 @@ public:
     bool hasTcpServer(int id) const;
     bool hasWsClient(int id)  const;
 
+    // Прямой доступ к сессиям сервера для обновления UI
+    QList<ClientSession> tcpServerSessions(int id) const;
+
 signals:
     // Все сообщения от всех соединений — единый поток для MessageLogModel
     void messageReceived(const Message &message);
@@ -147,6 +150,15 @@ signals:
     // Мета-изменения конкретных соединений — UI обновляет статус
     void connectionInfoChanged(int id);
 
+    // Проброс клиентских событий TCP-сервера наружу
+    // serverId — id в ConnectionManager, не дескриптор сокета
+    void serverClientConnected   (int serverId,
+                               qintptr descriptor,
+                               const QString &displayName);
+    void serverClientDisconnected(int serverId,
+                                  qintptr descriptor,
+                                  const QString &displayName);
+
 private slots:
     // Агрегаторы сигналов от сетевых объектов
     void onTcpClientConnected(int id);
@@ -157,6 +169,9 @@ private slots:
 
     // Единый обработчик messageReceived от всех типов
     void onMessageReceived(const Message &message);
+
+    void onServerClientConnected   (qintptr descriptor, const QString &displayName);
+    void onServerClientDisconnected(qintptr descriptor, const QString &displayName);
 
 private:
     // Генератор уникальных id — простой инкремент

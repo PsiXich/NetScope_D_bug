@@ -146,13 +146,15 @@ void TcpServerPanel::setupConnections()
     connect(m_manager, SIGNAL(connectionInfoChanged(int)),
             this, SLOT(onConnectionInfoChanged(int)));
 
-    // Сигналы клиентских подключений идут напрямую от TcpServer через менеджер
-    // Менеджер не агрегирует clientConnected/Disconnected — подключаемся
-    // к TcpServer напрямую через менеджер недоступно, поэтому используем
-    // messageReceived для обновления списка клиентов через updateClientList()
-    // Полноценный список клиентов читаем из TcpServer::sessions()
-    connect(m_manager, SIGNAL(messageReceived(Message)),
-            this, SLOT(updateClientList()));
+    connect(m_manager,
+            SIGNAL(serverClientConnected(int, qintptr, QString)),
+            this,
+            SLOT(onServerClientConnected(int, qintptr, QString)));
+
+    connect(m_manager,
+            SIGNAL(serverClientDisconnected(int, qintptr, QString)),
+            this,
+            SLOT(onServerClientDisconnected(int, qintptr, QString)));
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +241,51 @@ void TcpServerPanel::onConnectionInfoChanged(int id)
     updateUiState();
 }
 
+void TcpServerPanel::onServerClientConnected(int serverId,
+                                             qintptr descriptor,
+                                             const QString &displayName)
+{
+    if (serverId != m_connectionId) return;
+
+    QListWidgetItem *item = new QListWidgetItem(
+        QString("● %1").arg(displayName), m_clientList
+        );
+    // Храним descriptor в UserRole для отправки конкретному клиенту
+    item->setData(Qt::UserRole, static_cast<qint64>(descriptor));
+    item->setForeground(QColor(80, 200, 80));
+
+    m_clientsGroup->setTitle(
+        QString("Clients (%1 connected)").arg(m_clientList->count())
+        );
+
+    // Обновляем кнопку Send — клиент появился
+    onClientSelectionChanged();
+}
+
+void TcpServerPanel::onServerClientDisconnected(int serverId,
+                                                qintptr descriptor,
+                                                const QString &displayName)
+{
+    Q_UNUSED(displayName)
+    if (serverId != m_connectionId) return;
+
+    // Ищем элемент по descriptor в UserRole
+    for (int i = 0; i < m_clientList->count(); ++i) {
+        QListWidgetItem *item = m_clientList->item(i);
+        if (item && item->data(Qt::UserRole).toLongLong()
+                        == static_cast<qint64>(descriptor)) {
+            delete m_clientList->takeItem(i);
+            break;
+        }
+    }
+
+    m_clientsGroup->setTitle(
+        QString("Clients (%1 connected)").arg(m_clientList->count())
+        );
+
+    onClientSelectionChanged();
+}
+
 // ---------------------------------------------------------------------------
 // Приватные методы
 // ---------------------------------------------------------------------------
@@ -266,25 +313,6 @@ void TcpServerPanel::updateUiState()
         m_clientList->clear();
         m_clientsGroup->setTitle("Clients (0 connected)");
     }
-}
-
-void TcpServerPanel::updateClientList()
-{
-    // Вызывается при каждом сообщении — проверяем только для нашего сервера
-    const ConnectionInfo info = m_manager->connectionInfo(m_connectionId);
-    if (!info.isActive) {
-        return;
-    }
-
-    // Получаем актуальный список сессий из менеджера через TcpServer
-    // Менеджер не выставляет sessions() напрямую — используем hasTcpServer()
-    // как проверку и работаем с тем что есть через сообщения
-    // Полноценный доступ к sessions() добавим если понадобится детальный UI
-    // Пока обновляем заголовок группы по числу строк в списке
-    const int count = m_clientList->count();
-    m_clientsGroup->setTitle(
-        QString("Clients (%1 connected)").arg(count)
-        );
 }
 
 qintptr TcpServerPanel::selectedDescriptor() const
