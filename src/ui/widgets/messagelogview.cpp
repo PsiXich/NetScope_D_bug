@@ -172,8 +172,8 @@ void MessageLogView::configureTableView()
 
     m_tableView->setColumnWidth(MessageLogModel::ColTime,      90);
     m_tableView->setColumnWidth(MessageLogModel::ColId,        35);
-    m_tableView->setColumnWidth(MessageLogModel::ColProtocol,  55);
-    m_tableView->setColumnWidth(MessageLogModel::ColDirection, 55);
+    m_tableView->setColumnWidth(MessageLogModel::ColProtocol,  72);
+    m_tableView->setColumnWidth(MessageLogModel::ColDirection, 72);
     m_tableView->setColumnWidth(MessageLogModel::ColSize,      50);
     // ColData — stretch, ширина не задаётся
 
