@@ -45,9 +45,12 @@ public:
 
     void disconnectAll()
     {
-        for (QTcpSocket *client : m_clients) {
-            // abort() — мгновенное закрытие без ожидания graceful shutdown
-            client->abort();
+        // Создаем копию, чтобы избежать инвалидации итераторов при удалении сокетов во время обхода
+        QList<QTcpSocket*> clientsCopy = m_clients;
+
+        for (QTcpSocket *client : clientsCopy) {
+            // disconnectFromHost() вместо abort() закрывает соединение плавно и без генерации ошибок сети
+            client->disconnectFromHost();
         }
     }
 

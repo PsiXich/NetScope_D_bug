@@ -12,6 +12,7 @@ class QCheckBox;
 class QLabel;
 class QPushButton;
 class QToolButton;
+class QLineEdit;
 
 // ---------------------------------------------------------------------------
 // MessageLogView — виджет отображения лога сообщений
@@ -56,8 +57,10 @@ private slots:
     void onConnectionFilterChanged(int index);
     void onProtocolFilterChanged(int index);
     void onDirectionFilterChanged(int index);
+    void onSearchTextChanged(const QString &text);
     void onClearClicked();
     void onRowsInserted();
+    void onTableDoubleClicked(const QModelIndex &index);
 
     // Обновляем счётчик строк в label при каждом изменении модели
     void onRowCountChanged();
@@ -76,6 +79,7 @@ private:
     QComboBox   *m_connectionCombo  { nullptr };
     QComboBox   *m_protocolCombo    { nullptr };
     QComboBox   *m_directionCombo   { nullptr };
+    QLineEdit   *m_searchEdit       { nullptr };
     QCheckBox   *m_autoScrollCheck  { nullptr };
     QPushButton *m_clearBtn         { nullptr };
     QLabel      *m_countLabel       { nullptr };

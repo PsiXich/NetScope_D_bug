@@ -10,6 +10,7 @@
 #include <QVBoxLayout>
 #include <QScrollBar>
 #include <QDebug>
+#include <QLineEdit>
 
 // ---------------------------------------------------------------------------
 // MessageLogView implementation
@@ -36,6 +37,7 @@ void MessageLogView::addConnectionFilter(int id, const QString &displayName)
 
 void MessageLogView::removeConnectionFilter(int id)
 {
+    // Ищем элемент с соответствующим ID в UserRole и удаляем его из списка
     for (int i = 0; i < m_connectionCombo->count(); ++i) {
         if (m_connectionCombo->itemData(i).toInt() == id) {
             m_connectionCombo->removeItem(i);
@@ -54,12 +56,12 @@ void MessageLogView::setupUi()
     // Панель фильтров
     // -----------------------------------------------------------------------
 
-    // Фильтр по соединению
+    // --- Фильтр по соединению ---
     m_connectionCombo = new QComboBox(this);
     m_connectionCombo->addItem("All connections", -1);  // -1 = без фильтра
     m_connectionCombo->setMinimumWidth(140);
 
-    // Фильтр по протоколу
+    // --- Фильтр по протоколу ---
     m_protocolCombo = new QComboBox(this);
     m_protocolCombo->addItem("All protocols",
                              static_cast<int>(Message::Protocol::Unknown));
@@ -70,7 +72,7 @@ void MessageLogView::setupUi()
     m_protocolCombo->addItem("WebSocket",
                              static_cast<int>(Message::Protocol::WebSocket));
 
-    // Фильтр по направлению
+    // --- Фильтр по направлению ---
     m_directionCombo = new QComboBox(this);
     m_directionCombo->addItem("All directions", -1);
     m_directionCombo->addItem("↓ Incoming",
@@ -83,6 +85,13 @@ void MessageLogView::setupUi()
     m_autoScrollCheck = new QCheckBox("Auto-scroll", this);
     m_autoScrollCheck->setChecked(true);
 
+    // --- Поиск по тексту (payload) ---
+    m_searchEdit = new QLineEdit(this);
+    m_searchEdit->setPlaceholderText("Search payload...");
+    m_searchEdit->setClearButtonEnabled(true);
+    m_searchEdit->setMinimumWidth(150);
+
+    // --- Управление логом ---
     m_clearBtn = new QPushButton("Clear", this);
     m_clearBtn->setFixedWidth(60);
 
@@ -90,19 +99,27 @@ void MessageLogView::setupUi()
     m_countLabel->setStyleSheet("color: #666;");
     m_countLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
+    // --- Компоновка панели фильтров ---
     QHBoxLayout *filterRow = new QHBoxLayout;
     filterRow->addWidget(new QLabel("Connection:", this));
     filterRow->addWidget(m_connectionCombo);
     filterRow->addSpacing(8);
+
     filterRow->addWidget(new QLabel("Protocol:", this));
     filterRow->addWidget(m_protocolCombo);
     filterRow->addSpacing(8);
+
     filterRow->addWidget(new QLabel("Direction:", this));
     filterRow->addWidget(m_directionCombo);
     filterRow->addSpacing(16);
+
+    filterRow->addWidget(m_searchEdit);
+    filterRow->addSpacing(16);
+
     filterRow->addWidget(m_autoScrollCheck);
     filterRow->addSpacing(8);
     filterRow->addWidget(m_clearBtn);
+
     filterRow->addStretch();
     filterRow->addWidget(m_countLabel);
 
@@ -131,9 +148,13 @@ void MessageLogView::setupConnections()
     connect(m_directionCombo, SIGNAL(currentIndexChanged(int)),
             this, SLOT(onDirectionFilterChanged(int)));
 
+    connect(m_searchEdit, SIGNAL(textChanged(QString)),
+            this, SLOT(onSearchTextChanged(QString)));
+
     connect(m_clearBtn, SIGNAL(clicked()),
             this, SLOT(onClearClicked()));
 
+    // --- Сигналы от модели данных ---
     // Следим за вставкой строк для auto-scroll и счётчика
     connect(m_model, SIGNAL(rowsInserted(QModelIndex, int, int)),
             this, SLOT(onRowsInserted()));
@@ -145,6 +166,7 @@ void MessageLogView::setupConnections()
     connect(m_model, SIGNAL(modelReset()),
             this, SLOT(onRowCountChanged()));
 
+    // --- Интерактивность таблицы ---
     // Двойной клик по строке
     connect(m_tableView, SIGNAL(doubleClicked(QModelIndex)),
             this, SLOT(onTableDoubleClicked(QModelIndex)));
@@ -213,6 +235,12 @@ void MessageLogView::onDirectionFilterChanged(int index)
     onRowCountChanged();
 }
 
+void MessageLogView::onSearchTextChanged(const QString &text)
+{
+    m_model->setFilterText(text);
+    onRowCountChanged();
+}
+
 void MessageLogView::onClearClicked()
 {
     m_model->clear();
@@ -225,8 +253,22 @@ void MessageLogView::onRowsInserted()
     scrollToBottomIfNeeded();
 }
 
+void MessageLogView::onTableDoubleClicked(const QModelIndex &index)
+{
+    if (!index.isValid()) {
+        return;
+    }
+
+    // Запрашиваем оригинальное сообщение из модели через кастомную роль
+    QVariant data = m_model->data(index, MessageLogModel::RawMessageRole);
+    if (data.canConvert<Message>()) {
+        emit messageDoubleClicked(data.value<Message>());
+    }
+}
+
 void MessageLogView::onRowCountChanged()
 {
+    // Получаем количество строк после применения всех фильтров
     const int count = m_model->rowCount();
     m_countLabel->setText(
         QString("%1 message%2").arg(count).arg(count == 1 ? "" : "s")
