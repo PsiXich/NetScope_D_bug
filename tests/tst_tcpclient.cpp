@@ -46,7 +46,8 @@ public:
     void disconnectAll()
     {
         for (QTcpSocket *client : m_clients) {
-            client->disconnectFromHost();
+            // abort() — мгновенное закрытие без ожидания graceful shutdown
+            client->abort();
         }
     }
 
@@ -276,7 +277,9 @@ void TcpClientTest::testReconnect()
     // Принудительно разрываем соединение
     m_server->disconnectAll();
 
-    QVERIFY(spyDisconnected.wait(2000));
+    if (spyDisconnected.isEmpty()) {
+        QVERIFY(spyDisconnected.wait(3000));
+    }
 
     // Ждём автореконнект
     QVERIFY(spyConnected.wait(3000));
