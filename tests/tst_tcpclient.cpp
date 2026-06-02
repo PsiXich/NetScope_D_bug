@@ -45,12 +45,12 @@ public:
 
     void disconnectAll()
     {
-        // Создаем копию, чтобы избежать инвалидации итераторов при удалении сокетов во время обхода
-        QList<QTcpSocket*> clientsCopy = m_clients;
-
+        const QList<QTcpSocket*> clientsCopy = m_clients;
         for (QTcpSocket *client : clientsCopy) {
-            // disconnectFromHost() вместо abort() закрывает соединение плавно и без генерации ошибок сети
-            client->disconnectFromHost();
+            // Проверяем, что сокет ещё жив и подключён
+            if (client && client->state() == QAbstractSocket::ConnectedState) {
+                client->abort();
+            }
         }
     }
 
@@ -58,14 +58,20 @@ private slots:
     void onNewConnection()
     {
         while (m_server->hasPendingConnections()) {
-            QTcpSocket *client = m_server->nextPendingConnection();
-            m_clients.append(client);
-            ++m_connectionsCount;
+            QTcpSocket *socket = m_server->nextPendingConnection();
+            m_clients.append(socket);
+            m_connectionsCount++;
 
-            connect(client, SIGNAL(readyRead()),
-                    this, SLOT(onReadyRead()));
-            connect(client, SIGNAL(disconnected()),
-                    client, SLOT(deleteLater()));
+            connect(socket, &QTcpSocket::readyRead, [socket]() {
+                socket->write(socket->readAll());
+            });
+
+            // ПРАВИЛЬНАЯ ОЧИСТКА ПРИ ОТКЛЮЧЕНИИ
+            connect(socket, &QTcpSocket::disconnected, this, [this, socket]() {
+                m_clients.removeOne(socket); // Удаляем из списка живых клиентов
+                m_connectionsCount--;
+                socket->deleteLater();       // Затем безопасно удаляем объект
+            });
         }
     }
 
@@ -272,20 +278,38 @@ void TcpClientTest::testReconnect()
     m_client->setReconnectInterval(300);
 
     QSignalSpy spyConnected(m_client, SIGNAL(connected(int)));
-    QSignalSpy spyDisconnected(m_client, SIGNAL(disconnected(int)));
+    QSignalSpy spyState(m_client, SIGNAL(stateChanged(int, TcpClient::State)));
 
     m_client->connectToHost("127.0.0.1", m_server->port());
     QVERIFY(spyConnected.wait(2000));
+    QCOMPARE(spyConnected.count(), 1);
 
-    // Принудительно разрываем соединение
+    // Гарантируем, что сервер успел отреагировать на новое подключение
+    // и положил сокет в свой список m_clients.
+    QTRY_VERIFY_WITH_TIMEOUT(m_server->connectionsCount() > 0, 2000);
+    // ---------------------------
+
+    qDebug() << "[TEST] Before disconnectAll - state:" << m_client->state();
+
     m_server->disconnectAll();
 
-    if (spyDisconnected.isEmpty()) {
-        QVERIFY(spyDisconnected.wait(3000));
+    // Ждём перехода в Disconnected
+    bool connectionLost = false;
+    for (int i = 0; i < 120; ++i) {   // до 6 секунд
+        if (m_client->state() == TcpClient::State::Disconnected) {
+            connectionLost = true;
+            break;
+        }
+        QTest::qWait(50);
     }
 
-    // Ждём автореконнект
-    QVERIFY(spyConnected.wait(3000));
+    qDebug() << "[TEST] After wait - final state:" << m_client->state();
+
+    QVERIFY2(connectionLost, "Client did not go to Disconnected state");
+
+    // Ждём реконнект
+    QVERIFY2(spyConnected.wait(6000), "Reconnect did not happen");
+    QCOMPARE(spyConnected.count(), 2);
     QCOMPARE(m_client->state(), TcpClient::State::Connected);
 }
 

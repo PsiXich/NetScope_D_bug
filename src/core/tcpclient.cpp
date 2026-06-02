@@ -26,16 +26,16 @@ TcpClient::TcpClient(int connectionId, QObject *parent)
     connect(m_socket, &QTcpSocket::disconnected,   this, &TcpClient::onDisconnected);
     connect(m_socket, &QTcpSocket::readyRead,      this, &TcpClient::onReadyRead);
 
-    // error() перегружен в Qt5 — строковый синтаксис обходит эту проблему
-    // В Qt6 этот сигнал переименован в errorOccurred() — при миграции
-    // достаточно поменять строку здесь
-    #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-        connect(m_socket, &QAbstractSocket::errorOccurred,
-                this, &TcpClient::onSocketError);
-    #else
-        connect(m_socket, SIGNAL(error(QAbstractSocket::SocketError)),
-                this, SLOT(onSocketError(QAbstractSocket::SocketError)));
-    #endif
+// error() перегружен в Qt5 — строковый синтаксис обходит эту проблему
+// В Qt6 этот сигнал переименован в errorOccurred() — при миграции
+// достаточно поменять строку здесь
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    connect(m_socket, &QAbstractSocket::errorOccurred,
+            this, &TcpClient::onSocketError);
+#else
+    connect(m_socket, SIGNAL(error(QAbstractSocket::SocketError)),
+            this, SLOT(onSocketError(QAbstractSocket::SocketError)));
+#endif
 
     connect(m_reconnectTimer, &QTimer::timeout, this, &TcpClient::onReconnectTimer);
 }

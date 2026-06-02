@@ -100,28 +100,37 @@ void MessageLogView::setupUi()
     m_countLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     // --- Компоновка панели фильтров ---
-    QHBoxLayout *filterRow = new QHBoxLayout;
-    filterRow->addWidget(new QLabel("Connection:", this));
-    filterRow->addWidget(m_connectionCombo);
-    filterRow->addSpacing(8);
+    // 1. Верхний ряд: Настройки соединения и основные фильтры
+    QHBoxLayout *topFilterRow = new QHBoxLayout;
+    topFilterRow->addWidget(new QLabel("Connection:", this));
+    topFilterRow->addWidget(m_connectionCombo);
+    topFilterRow->addSpacing(8);
 
-    filterRow->addWidget(new QLabel("Protocol:", this));
-    filterRow->addWidget(m_protocolCombo);
-    filterRow->addSpacing(8);
+    topFilterRow->addWidget(new QLabel("Protocol:", this));
+    topFilterRow->addWidget(m_protocolCombo);
+    topFilterRow->addSpacing(8);
 
-    filterRow->addWidget(new QLabel("Direction:", this));
-    filterRow->addWidget(m_directionCombo);
-    filterRow->addSpacing(16);
+    topFilterRow->addWidget(new QLabel("Direction:", this));
+    topFilterRow->addWidget(m_directionCombo);
 
-    filterRow->addWidget(m_searchEdit);
-    filterRow->addSpacing(16);
+    topFilterRow->addStretch(); // Прижимает всё влево
 
-    filterRow->addWidget(m_autoScrollCheck);
-    filterRow->addSpacing(8);
-    filterRow->addWidget(m_clearBtn);
+    // 2. Нижний ряд: Поиск, автоскролл и счетчик
+    QHBoxLayout *bottomFilterRow = new QHBoxLayout;
+    bottomFilterRow->addWidget(m_searchEdit);
+    bottomFilterRow->addSpacing(16);
 
-    filterRow->addStretch();
-    filterRow->addWidget(m_countLabel);
+    bottomFilterRow->addWidget(m_autoScrollCheck);
+    bottomFilterRow->addSpacing(8);
+    bottomFilterRow->addWidget(m_clearBtn);
+
+    bottomFilterRow->addStretch(); // Прижимает кнопки влево, а счетчик вправо
+    bottomFilterRow->addWidget(m_countLabel);
+
+    // 3. Объединяем оба ряда
+    QVBoxLayout *filterLayout = new QVBoxLayout;
+    filterLayout->addLayout(topFilterRow);
+    filterLayout->addLayout(bottomFilterRow);
 
     // -----------------------------------------------------------------------
     // Таблица
@@ -133,7 +142,7 @@ void MessageLogView::setupUi()
     // -----------------------------------------------------------------------
     QVBoxLayout *root = new QVBoxLayout(this);
     root->setContentsMargins(0, 4, 0, 0);
-    root->addLayout(filterRow);
+    root->addLayout(filterLayout);
     root->addWidget(m_tableView, 1);    // таблица растягивается
 }
 
