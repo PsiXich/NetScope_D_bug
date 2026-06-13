@@ -71,6 +71,8 @@ void MessageLogView::setupUi()
                              static_cast<int>(Message::Protocol::TcpServer));
     m_protocolCombo->addItem("WebSocket",
                              static_cast<int>(Message::Protocol::WebSocket));
+    m_protocolCombo->addItem("WS Server",
+                             static_cast<int>(Message::Protocol::WsServer));
 
     // --- Фильтр по направлению ---
     m_directionCombo = new QComboBox(this);

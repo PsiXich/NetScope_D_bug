@@ -409,6 +409,7 @@ QString MessageLogModel::formatProtocol(Message::Protocol protocol)
     case Message::Protocol::Tcp:       return QStringLiteral("TCP");
     case Message::Protocol::TcpServer: return QStringLiteral("TCP-S");
     case Message::Protocol::WebSocket: return QStringLiteral("WS");
+    case Message::Protocol::WsServer: return QStringLiteral("WS-S");
     case Message::Protocol::Unknown:   return QStringLiteral("?");
     }
     return QStringLiteral("?");

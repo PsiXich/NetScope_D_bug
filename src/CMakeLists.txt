@@ -50,7 +50,8 @@ set(APP_SOURCES
 )
 
 add_executable(netscope_app ${APP_SOURCES}
-    core/wsserver.h)
+    core/wsserver.h
+    core/wsserver.cpp)
 
 target_link_libraries(netscope_app
     PRIVATE

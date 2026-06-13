@@ -26,6 +26,7 @@ struct Message
         Tcp,
         TcpServer,  // входящее соединение на стороне сервера
         WebSocket,
+        WsServer,
         Unknown
     };
 
