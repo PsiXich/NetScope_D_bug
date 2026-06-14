@@ -90,6 +90,24 @@ int ConnectionManager::createWsClient()
     return id;
 }
 
+int ConnectionManager::createWsServer()
+{
+    const int id = nextId();
+    WsServer *server = new WsServer(id, this);
+    m_wsServers.insert(id, server);
+    connectWsServerSignals(server);
+
+    ConnectionInfo info;
+    info.id          = id;
+    info.type        = ConnectionInfo::Type::WsServer;
+    info.displayName = QString("WS Server #%1").arg(id);
+    info.isActive    = false;
+    m_infos.insert(id, info);
+
+    emit connectionAdded(info);
+    return id;
+}
+
 // ---------------------------------------------------------------------------
 // Управление соединениями
 // ---------------------------------------------------------------------------
@@ -177,12 +195,19 @@ bool ConnectionManager::disconnectWsClient(int id)
     return true;
 }
 
-QList<ClientSession> ConnectionManager::tcpServerSessions(int id) const
+bool ConnectionManager::startWsServer(int id,
+                                      const QHostAddress &address,
+                                      quint16 port)
 {
-    if (!m_tcpServers.contains(id)) {
-        return QList<ClientSession>();
-    }
-    return m_tcpServers.value(id)->sessions();
+    if (!m_wsServers.contains(id)) return false;
+    return m_wsServers[id]->startListening(address, port);
+}
+
+bool ConnectionManager::stopWsServer(int id)
+{
+    if (!m_wsServers.contains(id)) return false;
+    m_wsServers[id]->stopListening();
+    return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +260,36 @@ bool ConnectionManager::sendWsBinary(int id, const QByteArray &data)
         return false;
     }
     return m_wsClients[id]->sendBinaryMessage(data);
+}
+
+bool ConnectionManager::sendWsTextToSession(int id,
+                                            int sessionId,
+                                            const QString &text)
+{
+    if (!m_wsServers.contains(id)) return false;
+    return m_wsServers[id]->sendTextToClient(sessionId, text);
+}
+
+bool ConnectionManager::sendWsBinaryToSession(int id,
+                                              int sessionId,
+                                              const QByteArray &data)
+{
+    if (!m_wsServers.contains(id)) return false;
+    return m_wsServers[id]->sendBinaryToClient(sessionId, data);
+}
+
+bool ConnectionManager::broadcastWsText(int id, const QString &text)
+{
+    if (!m_wsServers.contains(id)) return false;
+    m_wsServers[id]->broadcastText(text);
+    return true;
+}
+
+bool ConnectionManager::broadcastWsBinary(int id, const QByteArray &data)
+{
+    if (!m_wsServers.contains(id)) return false;
+    m_wsServers[id]->broadcastBinary(data);
+    return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -290,6 +345,11 @@ bool ConnectionManager::removeConnection(int id)
         m_wsClients[id]->deleteLater();
         m_wsClients.remove(id);
     }
+    else if (m_wsServers.contains(id)) {
+        m_wsServers[id]->stopListening();
+        m_wsServers[id]->deleteLater();
+        m_wsServers.remove(id);
+    }
 
     m_infos.remove(id);
 
@@ -322,19 +382,21 @@ ConnectionInfo ConnectionManager::connectionInfo(int id) const
     return m_infos.value(id, ConnectionInfo());
 }
 
-bool ConnectionManager::hasTcpClient(int id) const
+bool ConnectionManager::hasTcpClient(int id) const { return m_tcpClients.contains(id); }
+bool ConnectionManager::hasTcpServer(int id) const { return m_tcpServers.contains(id); }
+bool ConnectionManager::hasWsClient (int id) const { return m_wsClients.contains(id);  }
+bool ConnectionManager::hasWsServer (int id) const { return m_wsServers.contains(id);  }
+
+QList<ClientSession> ConnectionManager::tcpServerSessions(int id) const
 {
-    return m_tcpClients.contains(id);
+    if (!m_tcpServers.contains(id)) return {};
+    return m_tcpServers.value(id)->sessions();
 }
 
-bool ConnectionManager::hasTcpServer(int id) const
+QList<WsClientSession> ConnectionManager::wsServerSessions(int id) const
 {
-    return m_tcpServers.contains(id);
-}
-
-bool ConnectionManager::hasWsClient(int id) const
-{
-    return m_wsClients.contains(id);
+    if (!m_wsServers.contains(id)) return {};
+    return m_wsServers.value(id)->sessions();
 }
 
 // ---------------------------------------------------------------------------
@@ -371,12 +433,29 @@ void ConnectionManager::onWsClientDisconnected(int id)
     updateActiveState(id, false);
 }
 
+void ConnectionManager::onWsServerListeningChanged(bool listening)
+{
+    WsServer *server = qobject_cast<WsServer *>(sender());
+    if (server) {
+        const int id = server->connectionId();
+        // Обновляем displayName с реальным портом когда сервер стартовал
+        if (listening && m_infos.contains(id)) {
+            m_infos[id].displayName =
+                QString("WS Server #%1 — ws://0.0.0.0:%2")
+                    .arg(id).arg(server->port());
+            emit connectionInfoChanged(id);
+        }
+        updateActiveState(id, listening);
+    }
+}
+
 void ConnectionManager::onMessageReceived(const Message &message)
 {
     // Прозрачный проброс — менеджер не модифицирует сообщения
     emit messageReceived(message);
 }
 
+// TCP Server — проброс клиентских событий
 void ConnectionManager::onServerClientConnected(qintptr descriptor,
                                                 const QString &displayName)
 {
@@ -396,6 +475,23 @@ void ConnectionManager::onServerClientDisconnected(qintptr descriptor,
         return;
     }
     emit serverClientDisconnected(srv->connectionId(), descriptor, displayName);
+}
+
+// WS Server — проброс клиентских событий
+void ConnectionManager::onWsServerClientConnected(int sessionId,
+                                                  const QString &displayName)
+{
+    WsServer *srv = qobject_cast<WsServer *>(sender());
+    if (!srv) return;
+    emit wsServerClientConnected(srv->connectionId(), sessionId, displayName);
+}
+
+void ConnectionManager::onWsServerClientDisconnected(int sessionId,
+                                                     const QString &displayName)
+{
+    WsServer *srv = qobject_cast<WsServer *>(sender());
+    if (!srv) return;
+    emit wsServerClientDisconnected(srv->connectionId(), sessionId, displayName);
 }
 
 // ---------------------------------------------------------------------------
@@ -449,6 +545,21 @@ void ConnectionManager::connectWsClientSignals(WsClient *client)
 
     connect(client, SIGNAL(messageReceived(Message)),
             this, SLOT(onMessageReceived(Message)));
+}
+
+void ConnectionManager::connectWsServerSignals(WsServer *server)
+{
+    connect(server, SIGNAL(listeningChanged(bool)),
+            this, SLOT(onWsServerListeningChanged(bool)));
+
+    connect(server, SIGNAL(messageReceived(Message)),
+            this, SLOT(onMessageReceived(Message)));
+
+    connect(server, SIGNAL(clientConnected(int, QString)),
+            this, SLOT(onWsServerClientConnected(int, QString)));
+
+    connect(server, SIGNAL(clientDisconnected(int, QString)),
+            this, SLOT(onWsServerClientDisconnected(int, QString)));
 }
 
 void ConnectionManager::updateActiveState(int id, bool active)

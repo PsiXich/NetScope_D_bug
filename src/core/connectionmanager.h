@@ -5,6 +5,7 @@
 #include "TcpClient.h"
 #include "TcpServer.h"
 #include "WsClient.h"
+#include "WsServer.h"
 
 #include <QObject>
 #include <QMap>
@@ -21,7 +22,8 @@ struct ConnectionInfo
     enum class Type {
         TcpClient,
         TcpServer,
-        WebSocket
+        WebSocket,
+        WsServer
     };
 
     int     id          { -1 };
@@ -36,6 +38,7 @@ struct ConnectionInfo
         case Type::TcpClient:  return QStringLiteral("TCP Client");
         case Type::TcpServer:  return QStringLiteral("TCP Server");
         case Type::WebSocket:  return QStringLiteral("WebSocket");
+        case Type::WsServer:   return QStringLiteral("WS Server");
         }
         return QStringLiteral("Unknown");
     }
@@ -80,6 +83,9 @@ public:
     // Создать WebSocket-клиен. Не подключается автоматически
     int createWsClient();
 
+    // Создать WebSocket-сервер
+    int createWsServer();
+
     // --- Управление соединениями ---
 
     // Подключить TCP-клиент к хосту
@@ -102,6 +108,14 @@ public:
     // Отключить WebSocket-клиент
     bool disconnectWsClient(int id);
 
+    // Запустить WebSocket-сервер
+    bool startWsServer(int id,
+                       const QHostAddress &address = QHostAddress::Any,
+                       quint16 port = 0);
+
+    // Отключить WebSocket-сервер
+    bool stopWsServer(int id);
+
     // --- Отправка данных ---
 
     bool sendToTcpClient(int id, const QByteArray &data);
@@ -109,6 +123,13 @@ public:
     bool broadcastTcpServer(int id, const QByteArray &data);
     bool sendWsText(int id, const QString &text);
     bool sendWsBinary(int id, const QByteArray &data);
+
+    // WsServer: отправка конкретному клиенту
+    bool sendWsTextToSession  (int id, int sessionId, const QString &text);
+    bool sendWsBinaryToSession(int id, int sessionId, const QByteArray &data);
+    // WsServer: broadcast всем клиентам сервера
+    bool broadcastWsText  (int id, const QString &text);
+    bool broadcastWsBinary(int id, const QByteArray &data);
 
     // --- Настройка параметров ---
 
@@ -135,9 +156,11 @@ public:
     bool hasTcpClient(int id) const;
     bool hasTcpServer(int id) const;
     bool hasWsClient(int id)  const;
+    bool hasWsServer (int id) const;
 
     // Прямой доступ к сессиям сервера для обновления UI
     QList<ClientSession> tcpServerSessions(int id) const;
+    QList<WsClientSession> wsServerSessions (int id) const;
 
 signals:
     // Все сообщения от всех соединений — единый поток для MessageLogModel
@@ -159,6 +182,14 @@ signals:
                                   qintptr descriptor,
                                   const QString &displayName);
 
+    // --- WS Server клиентские события ---
+    void wsServerClientConnected   (int serverId,
+                                 int sessionId,
+                                 const QString &displayName);
+    void wsServerClientDisconnected(int serverId,
+                                    int sessionId,
+                                    const QString &displayName);
+
 private slots:
     // Агрегаторы сигналов от сетевых объектов
     void onTcpClientConnected(int id);
@@ -166,12 +197,22 @@ private slots:
     void onTcpServerListeningChanged(bool listening);
     void onWsClientConnected(int id);
     void onWsClientDisconnected(int id);
+    void onWsServerListeningChanged(bool listening);
 
     // Единый обработчик messageReceived от всех типов
     void onMessageReceived(const Message &message);
 
-    void onServerClientConnected   (qintptr descriptor, const QString &displayName);
-    void onServerClientDisconnected(qintptr descriptor, const QString &displayName);
+    // TCP Server — проброс клиентских событий
+    void onServerClientConnected   (qintptr descriptor,
+                                 const QString &displayName);
+    void onServerClientDisconnected(qintptr descriptor,
+                                    const QString &displayName);
+
+    // WS Server — проброс клиентских событий
+    void onWsServerClientConnected   (int sessionId,
+                                   const QString &displayName);
+    void onWsServerClientDisconnected(int sessionId,
+                                      const QString &displayName);
 
 private:
     // Генератор уникальных id — простой инкремент
@@ -186,6 +227,9 @@ private:
     // Подключение сигналов от WsClient
     void connectWsClientSignals(WsClient *client);
 
+    // Подключение сигналов от WsServer
+    void connectWsServerSignals (WsServer  *server);
+
     // Обновить ConnectionInfo.isActive и emit connectionInfoChanged()
     void updateActiveState(int id, bool active);
 
@@ -193,6 +237,7 @@ private:
     QMap<int, TcpClient *>  m_tcpClients;
     QMap<int, TcpServer *>  m_tcpServers;
     QMap<int, WsClient  *>  m_wsClients;
+    QMap<int, WsServer  *>  m_wsServers;
 
     // Метаданные для UI — отдельно от объектов чтобы не тянуть
     // сетевые заголовки туда где нужна только отображаемая информация
