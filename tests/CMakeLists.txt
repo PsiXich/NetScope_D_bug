@@ -67,3 +67,8 @@ netscope_add_test(
     NAME    tst_tcpserver
     SOURCES tst_tcpserver.cpp
 )
+
+netscope_add_test(
+    NAME    tst_wsserver
+    SOURCES tst_wsserver.cpp
+)

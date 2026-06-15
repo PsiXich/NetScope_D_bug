@@ -51,6 +51,8 @@ set(APP_SOURCES
     ui/widgets/HexViewer.cpp
 )
 
+add_executable(netscope_app ${APP_SOURCES})
+
 target_link_libraries(netscope_app
     PRIVATE
         netscope_core
