@@ -45,6 +45,7 @@ set(APP_SOURCES
     ui/panels/TcpClientPanel.cpp
     ui/panels/TcpServerPanel.cpp
     ui/panels/WsClientPanel.cpp
+    ui/panels/WsServerPanel.cpp
 
     ui/widgets/MessageLogView.cpp
     ui/widgets/HexViewer.cpp
@@ -55,11 +56,6 @@ target_link_libraries(netscope_app
         netscope_core
         Qt${QT_VERSION_MAJOR}::Widgets
         Qt${QT_VERSION_MAJOR}::Gui
-)
-
-target_sources(netscope_app
-  PRIVATE
-    ui/panels/wsserverpanel.h
 )
 
 set_target_properties(netscope_app PROPERTIES
