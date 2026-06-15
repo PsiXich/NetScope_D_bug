@@ -180,17 +180,28 @@ void WsServerTest::testStopListening()
 
 void WsServerTest::testStartOnUnavailablePort()
 {
+    // Создаем второй "блокирующий" сервер из нашего же класса
+    WsServer blockerServer(999);
+
+    // Запускаем его на любом свободном порту (0), используя правильный метод
+    QVERIFY(blockerServer.startListening(QHostAddress::LocalHost, 0));
+    const quint16 blockedPort = blockerServer.port();
+
     QSignalSpy spyError(m_server, SIGNAL(errorOccurred(int, QString)));
 
-    // Порт 1 — зарезервирован, bind должен упасть
-    const bool started = m_server->startListening(QHostAddress::LocalHost, 1);
+    // Пытаемся запустить наш основной сервер (m_server) на УЖЕ ЗАНЯТОМ порту
+    const bool started = m_server->startListening(QHostAddress::LocalHost, blockedPort);
 
+    // Проверяем, что запуск ожидаемо провалился
     QCOMPARE(started, false);
     QCOMPARE(m_server->isListening(), false);
+
+    // Убеждаемся, что сигнал об ошибке был испущен
     QVERIFY(spyError.count() > 0);
 
-    const int    id  = spyError.first().at(0).toInt();
+    const int id = spyError.first().at(0).toInt();
     const QString err = spyError.first().at(1).toString();
+
     QCOMPARE(id, CONNECTION_ID);
     QVERIFY(!err.isEmpty());
 }
@@ -284,9 +295,9 @@ void WsServerTest::testMultipleClients()
     client2.connectTo(m_server->port());
     client3.connectTo(m_server->port());
 
-    QVERIFY(spy1.wait(3000));
-    QVERIFY(spy2.wait(2000));
-    QVERIFY(spy3.wait(2000));
+    if (spy1.isEmpty()) QVERIFY(spy1.wait(3000));
+    if (spy2.isEmpty()) QVERIFY(spy2.wait(3000));
+    if (spy3.isEmpty()) QVERIFY(spy3.wait(3000));
 
     // Ждём пока сервер зарегистрирует всех клиентов
     const int maxWait = 2000;
@@ -445,8 +456,8 @@ void WsServerTest::testBroadcastText()
 
     client1.connectTo(m_server->port());
     client2.connectTo(m_server->port());
-    QVERIFY(spy1Conn.wait(3000));
-    QVERIFY(spy2Conn.wait(2000));
+    if (spy1Conn.isEmpty()) QVERIFY(spy1Conn.wait(3000));
+    if (spy2Conn.isEmpty()) QVERIFY(spy2Conn.wait(3000));
 
     // Ждём регистрации обоих клиентов
     const int maxWait = 2000;
@@ -482,8 +493,8 @@ void WsServerTest::testBroadcastBinary()
 
     client1.connectTo(m_server->port());
     client2.connectTo(m_server->port());
-    QVERIFY(spy1Conn.wait(3000));
-    QVERIFY(spy2Conn.wait(2000));
+    if (spy1Conn.isEmpty()) QVERIFY(spy1Conn.wait(3000));
+    if (spy2Conn.isEmpty()) QVERIFY(spy2Conn.wait(3000));
 
     const int maxWait = 2000;
     const int step    = 50;
