@@ -4,6 +4,7 @@
 #include "ui/panels/TcpServerPanel.h"
 #include "ui/panels/WsClientPanel.h"
 #include "ui/widgets/MessageLogView.h"
+#include "ui/panels/WsServerPanel.h"
 
 #include <QListView>
 #include <QStackedWidget>
@@ -108,6 +109,9 @@ void MainWindow::setupToolBar()
     m_actAddWsClient = toolBar->addAction("+ WebSocket");
     m_actAddWsClient->setToolTip("Create a new WebSocket client connection");
 
+    m_actAddWsServer = toolBar->addAction("+ WS Server");
+    m_actAddWsServer->setToolTip("Create a new WebSocket server");
+
     toolBar->addSeparator();
 
     m_actRemove = toolBar->addAction("Remove");
@@ -138,6 +142,9 @@ void MainWindow::setupConnections()
 
     connect(m_actAddWsClient, SIGNAL(triggered()),
             this, SLOT(onAddWsClient()));
+
+    connect(m_actAddWsServer, SIGNAL(triggered()),
+            this, SLOT(onAddWsServer()));
 
     connect(m_actRemove, SIGNAL(triggered()),
             this, SLOT(onRemoveConnection()));
@@ -207,6 +214,19 @@ void MainWindow::onAddWsClient()
     }
 
     qDebug() << "[MainWindow] created WsClient id=" << id;
+}
+
+void MainWindow::onAddWsServer()
+{
+    const int id = m_manager->createWsServer();
+
+    const int row = m_connectionModel->rowById(id);
+    if (row != -1) {
+        const QModelIndex idx = m_connectionModel->index(row);
+        m_connectionList->setCurrentIndex(idx);
+    }
+
+    qDebug() << "[MainWindow] created WsServer id=" << id;
 }
 
 void MainWindow::onConnectionSelected(const QModelIndex &index)
@@ -306,6 +326,8 @@ void MainWindow::switchToPanel(int connectionId)
         panel = new TcpServerPanel(connectionId, m_manager, m_panelStack);
     } else if (m_manager->hasWsClient(connectionId)) {
         panel = new WsClientPanel(connectionId, m_manager, m_panelStack);
+    } else if (m_manager->hasWsServer(connectionId)) {
+        panel = new WsServerPanel(connectionId, m_manager, m_panelStack);
     } else {
         qWarning() << "[MainWindow] switchToPanel: unknown id" << connectionId;
         return;

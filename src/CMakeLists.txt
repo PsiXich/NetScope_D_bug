@@ -10,6 +10,7 @@ add_library(netscope_core STATIC
     core/TcpServer.cpp
     core/WsClient.cpp
     core/ConnectionManager.cpp
+    core/WsServer.cpp
 
     # --- models ---
     models/MessageLogModel.cpp
@@ -49,15 +50,16 @@ set(APP_SOURCES
     ui/widgets/HexViewer.cpp
 )
 
-add_executable(netscope_app ${APP_SOURCES}
-    core/wsserver.h
-    core/wsserver.cpp)
-
 target_link_libraries(netscope_app
     PRIVATE
         netscope_core
         Qt${QT_VERSION_MAJOR}::Widgets
         Qt${QT_VERSION_MAJOR}::Gui
+)
+
+target_sources(netscope_app
+  PRIVATE
+    ui/panels/wsserverpanel.h
 )
 
 set_target_properties(netscope_app PROPERTIES
