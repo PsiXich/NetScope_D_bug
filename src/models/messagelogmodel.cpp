@@ -336,21 +336,35 @@ bool MessageLogModel::passesFilter(const Message &message) const
         return false;
     }
 
-    // Поиск по тексту
+    // Фильтр по тексту payload
     if (!m_filterText.isEmpty()) {
-        if (message.isText) {
-            // Для текста ищем строку без учета регистра
-            const QString payloadText = QString::fromUtf8(message.payload);
-            if (!payloadText.contains(m_filterText, Qt::CaseInsensitive)) {
-                return false;
-            }
-        } else {
-            // Для бинарных данных ищем прямое вхождение байтов
-            // (todo добавить поиск по Hex)
-            if (!message.payload.contains(m_filterText.toUtf8())) {
-                return false;
-            }
+        const QString needle = m_filterText.toLower();
+
+        bool found = false;
+
+        // 1. Всегда ищем в UTF-8 тексте — независимо от isText
+        //    TCP-данные могут быть текстом даже при isText=false
+        if (!message.payload.isEmpty()) {
+            found = QString::fromUtf8(message.payload)
+            .toLower()
+                .contains(needle);
         }
+
+        // 2. Поиск в info строке (системные события: connect, error и т.д.)
+        if (!found && !message.info.isEmpty()) {
+            found = message.info.toLower().contains(needle);
+        }
+
+        // 3. Поиск в hex-представлении — позволяет искать по "de ad be ef"
+        //    или "deadbeef" для бинарных данных
+        if (!found && !message.payload.isEmpty()) {
+            const QString hexStr = QString::fromLatin1(
+                                       message.payload.toHex(' ')  // "68 65 6c 6c 6f" — с пробелами
+                                       ).toLower();
+            found = hexStr.contains(needle);
+        }
+
+        if (!found) return false;
     }
 
     return true;
