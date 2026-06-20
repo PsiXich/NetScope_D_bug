@@ -6,6 +6,7 @@
 #include "TcpServer.h"
 #include "WsClient.h"
 #include "WsServer.h"
+#include "UdpEndpoint.h"
 #include "ConnectionStats.h"
 
 #include <QObject>
@@ -24,7 +25,8 @@ struct ConnectionInfo
         TcpClient,
         TcpServer,
         WebSocket,
-        WsServer
+        WsServer,
+        Udp
     };
 
     int     id          { -1 };
@@ -40,6 +42,7 @@ struct ConnectionInfo
         case Type::TcpServer:  return QStringLiteral("TCP Server");
         case Type::WebSocket:  return QStringLiteral("WebSocket");
         case Type::WsServer:   return QStringLiteral("WS Server");
+        case Type::Udp:        return QStringLiteral("UDP");
         }
         return QStringLiteral("Unknown");
     }
@@ -86,6 +89,27 @@ public:
 
     // Создать WebSocket-сервер
     int createWsServer();
+
+    // UDP
+    int createUdpEndpoint();
+
+    // Bind на локальный порт для приёма датаграмм
+    bool bindUdpEndpoint(int id,
+                         const QHostAddress &address = QHostAddress::Any,
+                         quint16 port = 0);
+    // Освободить порт
+    bool unbindUdpEndpoint(int id);
+
+    // Настройка цели отправки — независимо от bind
+    void setUdpTarget(int id,
+                      const QString &address,
+                      quint16 port);
+
+    // Включить broadcast (255.255.255.255)
+    void setUdpBroadcast(int id, bool enabled);
+
+    // Отправить датаграмму
+    bool sendUdpData(int id, const QByteArray &data);
 
     // --- Управление соединениями ---
 
@@ -154,10 +178,11 @@ public:
     // Информация о конкретном соединении
     ConnectionInfo connectionInfo(int id) const;
 
-    bool hasTcpClient(int id) const;
-    bool hasTcpServer(int id) const;
-    bool hasWsClient(int id)  const;
-    bool hasWsServer (int id) const;
+    bool hasTcpClient(int id)   const;
+    bool hasTcpServer(int id)   const;
+    bool hasWsClient(int id)    const;
+    bool hasWsServer (int id)   const;
+    bool hasUdpEndpoint(int id) const;
 
     // Прямой доступ к сессиям сервера для обновления UI
     QList<ClientSession> tcpServerSessions(int id) const;
@@ -209,6 +234,7 @@ private slots:
     void onTcpServerListeningChanged(bool listening);
     void onWsClientConnected(int id);
     void onWsClientDisconnected(int id);
+    void onUdpStateChanged(int id, UdpEndpoint::State state);
     void onWsServerListeningChanged(bool listening);
 
     // Единый обработчик messageReceived от всех типов
@@ -242,6 +268,9 @@ private:
     // Подключение сигналов от WsServer
     void connectWsServerSignals (WsServer  *server);
 
+    // Подключение сигналов UDP
+    void connectUdpEndpointSignals(UdpEndpoint *endpoint);
+
     // Обновить ConnectionInfo.isActive и emit connectionInfoChanged()
     void updateActiveState(int id, bool active);
 
@@ -249,10 +278,11 @@ private:
     void updateStats(const Message &message);
 
     // Реестры объектов — владеем через QMap + parent (QObject)
-    QMap<int, TcpClient *>  m_tcpClients;
-    QMap<int, TcpServer *>  m_tcpServers;
-    QMap<int, WsClient  *>  m_wsClients;
-    QMap<int, WsServer  *>  m_wsServers;
+    QMap<int, TcpClient *>   m_tcpClients;
+    QMap<int, TcpServer *>   m_tcpServers;
+    QMap<int, WsClient  *>   m_wsClients;
+    QMap<int, WsServer  *>   m_wsServers;
+    QMap<int, UdpEndpoint *> m_udpEndpoints;
 
     // Метаданные для UI — отдельно от объектов чтобы не тянуть
     // сетевые заголовки туда где нужна только отображаемая информация

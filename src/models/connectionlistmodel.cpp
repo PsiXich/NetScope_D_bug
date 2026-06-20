@@ -195,6 +195,7 @@ QString ConnectionListModel::typePrefix(ConnectionInfo::Type type)
     case ConnectionInfo::Type::TcpServer:  return QStringLiteral("[SRV]");
     case ConnectionInfo::Type::WebSocket:  return QStringLiteral("[WS] ");
     case ConnectionInfo::Type::WsServer:   return QStringLiteral("[WSS]");
+    case ConnectionInfo::Type::Udp:        return QStringLiteral("[UDP]");
     }
     return QStringLiteral("[?]  ");
 }

@@ -124,6 +124,33 @@ int ConnectionManager::createWsServer()
     return id;
 }
 
+int ConnectionManager::createUdpEndpoint()
+{
+    const int id = nextId();
+
+    UdpEndpoint *endpoint = new UdpEndpoint(id, this);
+    m_udpEndpoints.insert(id, endpoint);
+
+    connectUdpEndpointSignals(endpoint);
+
+    ConnectionInfo info;
+    info.id          = id;
+    info.type        = ConnectionInfo::Type::Udp;
+    info.displayName = QString("UDP #%1").arg(id);
+    info.isActive    = false;
+    m_infos.insert(id, info);
+
+    // Инициализация статистики — как в других create* методах
+    ConnectionStats s;
+    s.connectedAt = QDateTime::currentDateTimeUtc();
+    m_stats.insert(id, s);
+
+    qDebug() << "[ConnectionManager] created UdpEndpoint id=" << id;
+
+    emit connectionAdded(info);
+    return id;
+}
+
 // ---------------------------------------------------------------------------
 // Управление соединениями
 // ---------------------------------------------------------------------------
@@ -308,6 +335,66 @@ bool ConnectionManager::broadcastWsBinary(int id, const QByteArray &data)
     return true;
 }
 
+bool ConnectionManager::bindUdpEndpoint(int id,
+                                        const QHostAddress &address,
+                                        quint16 port)
+{
+    if (!m_udpEndpoints.contains(id)) {
+        qWarning() << "[ConnectionManager] bindUdpEndpoint: unknown id" << id;
+        return false;
+    }
+
+    // Обновляем displayName с портом до bind — UI увидит его сразу
+    if (m_infos.contains(id)) {
+        m_infos[id].displayName =
+            QString("UDP #%1 — %2:%3")
+                .arg(id)
+                .arg(address == QHostAddress::Any ? "0.0.0.0"
+                                                  : address.toString())
+                .arg(port);
+        emit connectionInfoChanged(id);
+    }
+
+    return m_udpEndpoints[id]->bind(address, port);
+}
+
+bool ConnectionManager::unbindUdpEndpoint(int id)
+{
+    if (!m_udpEndpoints.contains(id)) {
+        qWarning() << "[ConnectionManager] unbindUdpEndpoint: unknown id" << id;
+        return false;
+    }
+    m_udpEndpoints[id]->unbind();
+    return true;
+}
+
+void ConnectionManager::setUdpTarget(int id,
+                                     const QString &address,
+                                     quint16 port)
+{
+    if (!m_udpEndpoints.contains(id)) {
+        return;
+    }
+    m_udpEndpoints[id]->setTargetAddress(address);
+    m_udpEndpoints[id]->setTargetPort(port);
+}
+
+void ConnectionManager::setUdpBroadcast(int id, bool enabled)
+{
+    if (m_udpEndpoints.contains(id)) {
+        m_udpEndpoints[id]->setBroadcastEnabled(enabled);
+    }
+}
+
+bool ConnectionManager::sendUdpData(int id, const QByteArray &data)
+{
+    if (!m_udpEndpoints.contains(id)) {
+        qWarning() << "[ConnectionManager] sendUdpData: unknown id" << id;
+        return false;
+    }
+    return m_udpEndpoints[id]->sendData(data);
+}
+
 // ---------------------------------------------------------------------------
 // Настройка параметров
 // ---------------------------------------------------------------------------
@@ -366,6 +453,11 @@ bool ConnectionManager::removeConnection(int id)
         m_wsServers[id]->deleteLater();
         m_wsServers.remove(id);
     }
+    else if (m_udpEndpoints.contains(id)) {
+        m_udpEndpoints[id]->unbind();
+        m_udpEndpoints[id]->deleteLater();
+        m_udpEndpoints.remove(id);
+    }
 
     m_infos.remove(id);
     m_stats.remove(id);
@@ -402,10 +494,11 @@ ConnectionInfo ConnectionManager::connectionInfo(int id) const
     return m_infos.value(id, ConnectionInfo());
 }
 
-bool ConnectionManager::hasTcpClient(int id) const { return m_tcpClients.contains(id); }
-bool ConnectionManager::hasTcpServer(int id) const { return m_tcpServers.contains(id); }
-bool ConnectionManager::hasWsClient (int id) const { return m_wsClients.contains(id);  }
-bool ConnectionManager::hasWsServer (int id) const { return m_wsServers.contains(id);  }
+bool ConnectionManager::hasTcpClient(int id)   const { return m_tcpClients.contains(id);   }
+bool ConnectionManager::hasTcpServer(int id)   const { return m_tcpServers.contains(id);   }
+bool ConnectionManager::hasWsClient (int id)   const { return m_wsClients.contains(id);    }
+bool ConnectionManager::hasWsServer (int id)   const { return m_wsServers.contains(id);    }
+bool ConnectionManager::hasUdpEndpoint(int id) const { return m_udpEndpoints.contains(id); }
 
 QList<ClientSession> ConnectionManager::tcpServerSessions(int id) const
 {
@@ -515,6 +608,12 @@ void ConnectionManager::onWsServerClientDisconnected(int sessionId,
     emit wsServerClientDisconnected(srv->connectionId(), sessionId, displayName);
 }
 
+void ConnectionManager::onUdpStateChanged(int id, UdpEndpoint::State state)
+{
+    // Bound = активен (принимает датаграммы), Unbound = неактивен
+    updateActiveState(id, state == UdpEndpoint::State::Bound);
+}
+
 // ---------------------------------------------------------------------------
 // Приватные вспомогательные методы
 // ---------------------------------------------------------------------------
@@ -581,6 +680,19 @@ void ConnectionManager::connectWsServerSignals(WsServer *server)
 
     connect(server, SIGNAL(clientDisconnected(int, QString)),
             this, SLOT(onWsServerClientDisconnected(int, QString)));
+}
+
+void ConnectionManager::connectUdpEndpointSignals(UdpEndpoint *endpoint)
+{
+    connect(endpoint, SIGNAL(stateChanged(int, UdpEndpoint::State)),
+            this, SLOT(onUdpStateChanged(int, UdpEndpoint::State)));
+
+    connect(endpoint, SIGNAL(messageReceived(Message)),
+            this, SLOT(onMessageReceived(Message)));
+
+    // errorOccurred пробрасываем напрямую — тот же паттерн что у TcpClient
+    connect(endpoint, SIGNAL(errorOccurred(int, QString)),
+            this, SIGNAL(connectionInfoChanged(int)));
 }
 
 void ConnectionManager::updateActiveState(int id, bool active)

@@ -11,6 +11,7 @@ add_library(netscope_core STATIC
     core/WsClient.cpp
     core/ConnectionManager.cpp
     core/WsServer.cpp
+    core/UdpEndpoint.cpp
 
     # --- models ---
     models/MessageLogModel.cpp
@@ -51,8 +52,7 @@ set(APP_SOURCES
     ui/widgets/HexViewer.cpp
 )
 
-add_executable(netscope_app ${APP_SOURCES}
-    core/udpendpoint.h)
+add_executable(netscope_app ${APP_SOURCES})
 
 target_link_libraries(netscope_app
     PRIVATE
