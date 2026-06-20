@@ -6,6 +6,7 @@
 #include "TcpServer.h"
 #include "WsClient.h"
 #include "WsServer.h"
+#include "ConnectionStats.h"
 
 #include <QObject>
 #include <QMap>
@@ -162,6 +163,13 @@ public:
     QList<ClientSession> tcpServerSessions(int id) const;
     QList<WsClientSession> wsServerSessions (int id) const;
 
+    // Статистика соединения. Возвращает дефолтный ConnectionStats
+    // если id не найден — не крашится при некорректном id
+    ConnectionStats stats(int id) const;
+
+    // Сбросить статистику конкретного соединения
+    void resetStats(int id);
+
 signals:
     // Все сообщения от всех соединений — единый поток для MessageLogModel
     void messageReceived(const Message &message);
@@ -172,6 +180,10 @@ signals:
 
     // Мета-изменения конкретных соединений — UI обновляет статус
     void connectionInfoChanged(int id);
+
+    // Обновление статистики — эмитируется после каждого сообщения
+    // StatsWidget подписывается для live-обновления без polling
+    void statsUpdated(int id, const ConnectionStats &stats);
 
     // Проброс клиентских событий TCP-сервера наружу
     // serverId — id в ConnectionManager, не дескриптор сокета
@@ -233,6 +245,9 @@ private:
     // Обновить ConnectionInfo.isActive и emit connectionInfoChanged()
     void updateActiveState(int id, bool active);
 
+    // Обновить счётчики статистики по входящему/исходящему сообщению
+    void updateStats(const Message &message);
+
     // Реестры объектов — владеем через QMap + parent (QObject)
     QMap<int, TcpClient *>  m_tcpClients;
     QMap<int, TcpServer *>  m_tcpServers;
@@ -241,7 +256,14 @@ private:
 
     // Метаданные для UI — отдельно от объектов чтобы не тянуть
     // сетевые заголовки туда где нужна только отображаемая информация
-    QMap<int, ConnectionInfo> m_infos;
+    QMap<int, ConnectionInfo>  m_infos;
+    QMap<int, ConnectionStats> m_stats;
+
+    // Вспомогательные данные для расчёта скорости:
+    // время последнего замера и накопленные байты за интервал
+    QMap<int, QDateTime> m_lastSpeedSampleTime;
+    QMap<int, quint64>   m_bytesInSinceLastSample;
+    QMap<int, quint64>   m_bytesOutSinceLastSample;
 
     int m_nextId { 0 };
 };

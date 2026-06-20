@@ -40,6 +40,10 @@ int ConnectionManager::createTcpClient()
     info.isActive    = false;
     m_infos.insert(id, info);
 
+    ConnectionStats s;
+    s.connectedAt = QDateTime::currentDateTimeUtc();
+    m_stats.insert(id, s);
+
     qDebug() << "[ConnectionManager] created TcpClient id=" << id;
 
     emit connectionAdded(info);
@@ -61,6 +65,10 @@ int ConnectionManager::createTcpServer()
     info.displayName = QString("TCP Server #%1").arg(id);
     info.isActive    = false;
     m_infos.insert(id, info);
+
+    ConnectionStats s;
+    s.connectedAt = QDateTime::currentDateTimeUtc();
+    m_stats.insert(id, s);
 
     qDebug() << "[ConnectionManager] created TcpServer id=" << id;
 
@@ -84,6 +92,10 @@ int ConnectionManager::createWsClient()
     info.isActive    = false;
     m_infos.insert(id, info);
 
+    ConnectionStats s;
+    s.connectedAt = QDateTime::currentDateTimeUtc();
+    m_stats.insert(id, s);
+
     qDebug() << "[ConnectionManager] created WsClient id=" << id;
 
     emit connectionAdded(info);
@@ -103,6 +115,10 @@ int ConnectionManager::createWsServer()
     info.displayName = QString("WS Server #%1").arg(id);
     info.isActive    = false;
     m_infos.insert(id, info);
+
+    ConnectionStats s;
+    s.connectedAt = QDateTime::currentDateTimeUtc();
+    m_stats.insert(id, s);
 
     emit connectionAdded(info);
     return id;
@@ -352,6 +368,10 @@ bool ConnectionManager::removeConnection(int id)
     }
 
     m_infos.remove(id);
+    m_stats.remove(id);
+    m_lastSpeedSampleTime.remove(id);
+    m_bytesInSinceLastSample.remove(id);
+    m_bytesOutSinceLastSample.remove(id);
 
     qDebug() << "[ConnectionManager] removed connection id=" << id;
 
@@ -451,6 +471,7 @@ void ConnectionManager::onWsServerListeningChanged(bool listening)
 
 void ConnectionManager::onMessageReceived(const Message &message)
 {
+    updateStats(message);
     // Прозрачный проброс — менеджер не модифицирует сообщения
     emit messageReceived(message);
 }
@@ -575,4 +596,85 @@ void ConnectionManager::updateActiveState(int id, bool active)
 
     m_infos[id].isActive = active;
     emit connectionInfoChanged(id);
+}
+
+ConnectionStats ConnectionManager::stats(int id) const
+{
+    return m_stats.value(id, ConnectionStats());
+}
+
+void ConnectionManager::resetStats(int id)
+{
+    if (!m_stats.contains(id)) {
+        return;
+    }
+
+    m_stats[id].reset();
+    m_bytesInSinceLastSample[id]  = 0;
+    m_bytesOutSinceLastSample[id] = 0;
+
+    emit statsUpdated(id, m_stats[id]);
+}
+
+void ConnectionManager::updateStats(const Message &message)
+{
+    const int id = message.connectionId;
+
+    if (!m_stats.contains(id)) {
+        return;
+    }
+
+    ConnectionStats &s = m_stats[id];
+    const quint64 size = static_cast<quint64>(message.payload.size());
+
+    // Обновляем счётчики по направлению
+    if (message.direction == Message::Direction::Incoming) {
+        s.bytesIn    += size;
+        s.messagesIn += 1;
+        m_bytesInSinceLastSample[id] += size;
+    } else if (message.direction == Message::Direction::Outgoing) {
+        s.bytesOut    += size;
+        s.messagesOut += 1;
+        m_bytesOutSinceLastSample[id] += size;
+    }
+
+    s.lastActivityAt = QDateTime::currentDateTimeUtc();
+
+    // ---------------------------------------------------------------------------
+    // Расчёт пиковой скорости.
+    // Замеряем раз в секунду — если прошло >= 1000 мс с последнего замера,
+    // вычисляем скорость за интервал и обновляем peak если больше текущего.
+    // ---------------------------------------------------------------------------
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+
+    if (!m_lastSpeedSampleTime.contains(id)) {
+        m_lastSpeedSampleTime[id]       = now;
+        m_bytesInSinceLastSample[id]    = 0;
+        m_bytesOutSinceLastSample[id]   = 0;
+    }
+
+    const qint64 msSinceLastSample =
+        m_lastSpeedSampleTime[id].msecsTo(now);
+
+    if (msSinceLastSample >= 1000) {
+        // байт/сек за прошедший интервал
+        const double secElapsed = msSinceLastSample / 1000.0;
+
+        const quint64 speedIn  = static_cast<quint64>(
+            m_bytesInSinceLastSample[id]  / secElapsed
+            );
+        const quint64 speedOut = static_cast<quint64>(
+            m_bytesOutSinceLastSample[id] / secElapsed
+            );
+
+        if (speedIn  > s.peakBytesPerSecIn)  s.peakBytesPerSecIn  = speedIn;
+        if (speedOut > s.peakBytesPerSecOut) s.peakBytesPerSecOut = speedOut;
+
+        // Сброс накопителей для следующего интервала
+        m_lastSpeedSampleTime[id]       = now;
+        m_bytesInSinceLastSample[id]    = 0;
+        m_bytesOutSinceLastSample[id]   = 0;
+    }
+
+    emit statsUpdated(id, s);
 }
