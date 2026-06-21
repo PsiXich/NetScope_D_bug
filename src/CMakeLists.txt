@@ -47,13 +47,13 @@ set(APP_SOURCES
     ui/panels/TcpServerPanel.cpp
     ui/panels/WsClientPanel.cpp
     ui/panels/WsServerPanel.cpp
+    ui/panels/UdpEndpointPanel.cpp
 
     ui/widgets/MessageLogView.cpp
     ui/widgets/HexViewer.cpp
 )
 
-add_executable(netscope_app ${APP_SOURCES}
-    ui/panels/udpendpointpanel.h)
+add_executable(netscope_app ${APP_SOURCES})
 
 target_link_libraries(netscope_app
     PRIVATE
