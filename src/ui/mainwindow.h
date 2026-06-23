@@ -48,6 +48,7 @@ private slots:
     void onAddTcpServer();
     void onAddWsClient();
     void onAddWsServer();
+    void onAddUdpEndpoint();
 
     // Выбор соединения в списке — переключает активную панель
     void onConnectionSelected(const QModelIndex &index);
@@ -89,8 +90,10 @@ private:
     QAction *m_actAddTcpServer  { nullptr };
     QAction *m_actAddWsClient   { nullptr };
     QAction *m_actAddWsServer   { nullptr };
+    QAction *m_actAddUdp        { nullptr };
     QAction *m_actRemove        { nullptr };
     QAction *m_actClearLog      { nullptr };
+
 
     // --- Статусбар ---
     QLabel  *m_statusLabel      { nullptr };

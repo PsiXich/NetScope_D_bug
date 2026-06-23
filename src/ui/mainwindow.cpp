@@ -5,6 +5,7 @@
 #include "ui/panels/WsClientPanel.h"
 #include "ui/widgets/MessageLogView.h"
 #include "ui/panels/WsServerPanel.h"
+#include "ui/panels/UdpEndpointPanel.h"
 
 #include <QListView>
 #include <QStackedWidget>
@@ -112,6 +113,9 @@ void MainWindow::setupToolBar()
     m_actAddWsServer = toolBar->addAction("+ WS Server");
     m_actAddWsServer->setToolTip("Create a new WebSocket server");
 
+    m_actAddUdp = toolBar->addAction("+ UDP");
+    m_actAddUdp->setToolTip("Create a new UDP endpoint");
+
     toolBar->addSeparator();
 
     m_actRemove = toolBar->addAction("Remove");
@@ -145,6 +149,9 @@ void MainWindow::setupConnections()
 
     connect(m_actAddWsServer, SIGNAL(triggered()),
             this, SLOT(onAddWsServer()));
+
+    connect(m_actAddUdp, SIGNAL(triggered()),
+            this, SLOT(onAddUdpEndpoint()));
 
     connect(m_actRemove, SIGNAL(triggered()),
             this, SLOT(onRemoveConnection()));
@@ -227,6 +234,19 @@ void MainWindow::onAddWsServer()
     }
 
     qDebug() << "[MainWindow] created WsServer id=" << id;
+}
+
+void MainWindow::onAddUdpEndpoint()
+{
+    const int id = m_manager->createUdpEndpoint();
+
+    const int row = m_connectionModel->rowById(id);
+    if (row != -1) {
+        const QModelIndex idx = m_connectionModel->index(row);
+        m_connectionList->setCurrentIndex(idx);
+    }
+
+    qDebug() << "[MainWindow] created Udp id=" << id;
 }
 
 void MainWindow::onConnectionSelected(const QModelIndex &index)
@@ -328,6 +348,8 @@ void MainWindow::switchToPanel(int connectionId)
         panel = new WsClientPanel(connectionId, m_manager, m_panelStack);
     } else if (m_manager->hasWsServer(connectionId)) {
         panel = new WsServerPanel(connectionId, m_manager, m_panelStack);
+    } else if (m_manager->hasUdpEndpoint(connectionId)) {
+        panel = new UdpEndpointPanel(connectionId, m_manager, m_panelStack);
     } else {
         qWarning() << "[MainWindow] switchToPanel: unknown id" << connectionId;
         return;
