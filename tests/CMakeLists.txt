@@ -72,3 +72,8 @@ netscope_add_test(
     NAME    tst_wsserver
     SOURCES tst_wsserver.cpp
 )
+
+netscope_add_test(
+    NAME    tst_udpendpoint
+    SOURCES tst_udpendpoint.cpp
+)
