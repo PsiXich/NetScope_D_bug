@@ -32,6 +32,7 @@ target_link_libraries(netscope_core
         Qt${QT_VERSION_MAJOR}::Gui
         Qt${QT_VERSION_MAJOR}::Network
         Qt${QT_VERSION_MAJOR}::WebSockets
+        Qt${QT_VERSION_MAJOR}::Mqtt
         netscope_compile_options
 )
 

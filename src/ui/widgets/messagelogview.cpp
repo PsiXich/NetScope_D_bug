@@ -75,6 +75,8 @@ void MessageLogView::setupUi()
                              static_cast<int>(Message::Protocol::WsServer));
     m_protocolCombo->addItem("UDP",
                              static_cast<int>(Message::Protocol::Udp));
+    m_protocolCombo->addItem("MQTT",
+                             static_cast<int>(Message::Protocol::Mqtt));
 
     // --- Фильтр по направлению ---
     m_directionCombo = new QComboBox(this);
@@ -94,6 +96,18 @@ void MessageLogView::setupUi()
     m_searchEdit->setPlaceholderText("Search payload...");
     m_searchEdit->setClearButtonEnabled(true);
     m_searchEdit->setMinimumWidth(150);
+
+    // --- Поиск по Topic ---
+    m_topicFilterEdit = new QLineEdit(this);
+    m_topicFilterEdit->setPlaceholderText("Filter by MQTT topic...");
+    m_topicFilterEdit->setClearButtonEnabled(true);
+    m_topicFilterEdit->setToolTip(
+        "Filter messages by MQTT topic.\n"
+        "Supports MQTT wildcards:\n"
+        "  #  — matches any number of levels  (home/#)\n"
+        "  +  — matches exactly one level     (sensor/+/temp)\n\n"
+        "Non-MQTT messages are not affected by this filter."
+        );
 
     // --- Управление логом ---
     m_clearBtn = new QPushButton("Clear", this);
@@ -121,6 +135,11 @@ void MessageLogView::setupUi()
 
     // 2. Нижний ряд: Поиск, автоскролл и счетчик
     QHBoxLayout *bottomFilterRow = new QHBoxLayout;
+    bottomFilterRow->addWidget(new QLabel("Topic:", this));
+    bottomFilterRow->addWidget(m_topicFilterEdit);
+    bottomFilterRow->addSpacing(16);
+
+    bottomFilterRow->addWidget(new QLabel("Text:", this));
     bottomFilterRow->addWidget(m_searchEdit);
     bottomFilterRow->addSpacing(16);
 
@@ -163,6 +182,9 @@ void MessageLogView::setupConnections()
 
     connect(m_searchEdit, SIGNAL(textChanged(QString)),
             this, SLOT(onSearchTextChanged(QString)));
+
+    connect(m_topicFilterEdit, SIGNAL(textChanged(QString)),
+            this, SLOT(onTopicFilterChanged(QString)));
 
     connect(m_clearBtn, SIGNAL(clicked()),
             this, SLOT(onClearClicked()));
@@ -286,6 +308,12 @@ void MessageLogView::onRowCountChanged()
     m_countLabel->setText(
         QString("%1 message%2").arg(count).arg(count == 1 ? "" : "s")
         );
+}
+
+void MessageLogView::onTopicFilterChanged(const QString &text)
+{
+    m_model->setFilterTopic(text.trimmed());
+    onRowCountChanged();
 }
 
 // ---------------------------------------------------------------------------

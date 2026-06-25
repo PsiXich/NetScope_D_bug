@@ -57,6 +57,7 @@ private slots:
     void onConnectionFilterChanged(int index);
     void onProtocolFilterChanged(int index);
     void onDirectionFilterChanged(int index);
+    void onTopicFilterChanged(const QString &text);
     void onSearchTextChanged(const QString &text);
     void onClearClicked();
     void onRowsInserted();
@@ -80,6 +81,7 @@ private:
     QComboBox   *m_protocolCombo    { nullptr };
     QComboBox   *m_directionCombo   { nullptr };
     QLineEdit   *m_searchEdit       { nullptr };
+    QLineEdit   *m_topicFilterEdit  { nullptr };
     QCheckBox   *m_autoScrollCheck  { nullptr };
     QPushButton *m_clearBtn         { nullptr };
     QLabel      *m_countLabel       { nullptr };
