@@ -35,6 +35,7 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS
     Widgets
     Network
     WebSockets
+    Mqtt
     Test
 )
 
@@ -44,6 +45,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS
     Widgets
     Network
     WebSockets
+    Mqtt
     Test
 )
 

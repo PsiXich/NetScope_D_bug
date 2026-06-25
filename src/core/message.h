@@ -28,6 +28,7 @@ struct Message
         WebSocket,
         WsServer,
         Udp,
+        Mqtt,
         Unknown
     };
 
@@ -51,6 +52,10 @@ struct Message
     // HexViewer работает с этим полем напрямую
     QByteArray  payload;
 
+    // MQTT топик сообщения. Для остальных протоколов — пустая строка.
+    // Формат: "home/sensor/temperature", "devices/+/status", "#"
+    QString     topic;
+
     // Человекочитаемый текст для системных событий и ошибок
     // Для Incoming/Outgoing обычно пустой — UI сам форматирует payload
     QString     info;
@@ -64,7 +69,8 @@ struct Message
     // Фабричные методы
     // -----------------------------------------------------------------------
 
-    static Message incoming(int connId, Protocol proto, const QByteArray &data, bool text = false)
+    static Message incoming(int connId, Protocol proto, const QByteArray &data, bool text = false,
+                            const QString &topic = QString())
     {
         Message m;
         m.connectionId  = connId;
@@ -72,10 +78,12 @@ struct Message
         m.protocol      = proto;
         m.payload       = data;
         m.isText        = text;
+        m.topic         = topic;
         return m;
     }
 
-    static Message outgoing(int connId, Protocol proto, const QByteArray &data, bool text = false)
+    static Message outgoing(int connId, Protocol proto, const QByteArray &data, bool text = false,
+                            const QString &topic = QString())
     {
         Message m;
         m.connectionId  = connId;
@@ -83,6 +91,7 @@ struct Message
         m.protocol      = proto;
         m.payload       = data;
         m.isText        = text;
+        m.topic         = topic;
         return m;
     }
 

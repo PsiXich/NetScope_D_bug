@@ -26,7 +26,8 @@ struct ConnectionInfo
         TcpServer,
         WebSocket,
         WsServer,
-        Udp
+        Udp,
+        Mqtt
     };
 
     int     id          { -1 };
@@ -43,6 +44,7 @@ struct ConnectionInfo
         case Type::WebSocket:  return QStringLiteral("WebSocket");
         case Type::WsServer:   return QStringLiteral("WS Server");
         case Type::Udp:        return QStringLiteral("UDP");
+        case Type::Mqtt:       return QStringLiteral("MQTT");
         }
         return QStringLiteral("Unknown");
     }
