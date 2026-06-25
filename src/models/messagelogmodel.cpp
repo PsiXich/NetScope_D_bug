@@ -268,12 +268,36 @@ void MessageLogModel::setFilterText(const QString &text)
     endResetModel();
 }
 
+QString MessageLogModel::filterTopic() const
+{
+    return m_filterTopic;
+}
+
+void MessageLogModel::setFilterTopic(const QString &topicFilter)
+{
+    if (m_filterTopic == topicFilter) {
+        return;
+    }
+
+    m_filterTopic = topicFilter;
+
+    beginResetModel();
+    m_filteredIndices.clear();
+    for (int i = 0; i < m_allMessages.size(); ++i) {
+        if (passesFilter(m_allMessages.at(i))) {
+            m_filteredIndices.append(i);
+        }
+    }
+    endResetModel();
+}
+
 void MessageLogModel::clearFilters()
 {
     m_filterConnectionId = -1;
     m_filterProtocol     = Message::Protocol::Unknown;
     m_filterDirection    = -1;
     m_filterText.clear();
+    m_filterTopic.clear();
 
     beginResetModel();
     m_filteredIndices.clear();
@@ -367,6 +391,19 @@ bool MessageLogModel::passesFilter(const Message &message) const
         if (!found) return false;
     }
 
+    // Фильтр по MQTT топику с wildcard поддержкой
+    if (!m_filterTopic.isEmpty()) {
+        // Не-MQTT сообщения без топика пропускаем через фильтр —
+        // пользователь фильтрует только MQTT трафик
+        if (message.protocol == Message::Protocol::Mqtt
+            && !message.topic.isEmpty()) {
+            const QMqttTopicFilter filter(m_filterTopic);
+            if (!filter.match(QMqttTopicName(message.topic))) {
+                return false;
+            }
+        }
+    }
+
     return true;
 }
 
@@ -425,6 +462,7 @@ QString MessageLogModel::formatProtocol(Message::Protocol protocol)
     case Message::Protocol::WebSocket: return QStringLiteral("WS");
     case Message::Protocol::WsServer:  return QStringLiteral("WS-S");
     case Message::Protocol::Udp:       return QStringLiteral("UDP");
+    case Message::Protocol::Mqtt:      return QStringLiteral("MQTT");
     case Message::Protocol::Unknown:   return QStringLiteral("?");
     }
     return QStringLiteral("?");

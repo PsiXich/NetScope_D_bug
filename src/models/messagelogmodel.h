@@ -5,6 +5,7 @@
 #include "core/Message.h"
 
 #include <QAbstractTableModel>
+#include <QtMqtt/QMqttTopicFilter>
 #include <QVector>
 #include <QColor>
 
@@ -94,6 +95,13 @@ public:
     QString filterText() const;
     void setFilterText(const QString &text);
 
+    // Фильтр по MQTT топику с поддержкой wildcards
+    // Пустая строка = фильтр выключен
+    // Поддерживает MQTT wildcards: "home/#", "sensor/+/temp"
+    // Для не-MQTT сообщений фильтр пропускает их если topic пустой
+    QString filterTopic() const;
+    void    setFilterTopic(const QString &topicFilter);
+
 public slots:
     // Добавить сообщение в лог — подключается к ConnectionManager::messageReceived
     void appendMessage(const Message &message);
@@ -130,6 +138,8 @@ private:
 
     // Текст для текстовой фильтрации
     QString m_filterText;
+
+    QString m_filterTopic;  // пустая = фильтр выключен
 };
 
 #endif // NETSCOPE_MESSAGELOGMODEL_H
