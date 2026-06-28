@@ -54,7 +54,8 @@ set(APP_SOURCES
     ui/widgets/HexViewer.cpp
 )
 
-add_executable(netscope_app ${APP_SOURCES})
+add_executable(netscope_app ${APP_SOURCES}
+    core/MqttClient.h)
 
 target_link_libraries(netscope_app
     PRIVATE
