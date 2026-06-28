@@ -12,6 +12,7 @@ add_library(netscope_core STATIC
     core/ConnectionManager.cpp
     core/WsServer.cpp
     core/UdpEndpoint.cpp
+    core/MqttClient.cpp
 
     # --- models ---
     models/MessageLogModel.cpp
@@ -54,8 +55,7 @@ set(APP_SOURCES
     ui/widgets/HexViewer.cpp
 )
 
-add_executable(netscope_app ${APP_SOURCES}
-    core/MqttClient.h)
+add_executable(netscope_app ${APP_SOURCES})
 
 target_link_libraries(netscope_app
     PRIVATE
