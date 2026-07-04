@@ -151,6 +151,33 @@ int ConnectionManager::createUdpEndpoint()
     return id;
 }
 
+int ConnectionManager::createMqttClient()
+{
+    const int id = nextId();
+
+    MqttClient *client = new MqttClient(id, this);
+    m_mqttClients.insert(id, client);
+
+    connectMqttClientSignals(client);
+
+    ConnectionInfo info;
+    info.id          = id;
+    info.type        = ConnectionInfo::Type::Mqtt;
+    info.displayName = QString("MQTT #%1").arg(id);
+    info.isActive    = false;
+    m_infos.insert(id, info);
+
+    // Инициализация статистики — тот же паттерн что у остальных create*
+    ConnectionStats s;
+    s.connectedAt = QDateTime::currentDateTimeUtc();
+    m_stats.insert(id, s);
+
+    qDebug() << "[ConnectionManager] created MqttClient id=" << id;
+
+    emit connectionAdded(info);
+    return id;
+}
+
 // ---------------------------------------------------------------------------
 // Управление соединениями
 // ---------------------------------------------------------------------------
@@ -251,6 +278,72 @@ bool ConnectionManager::stopWsServer(int id)
     if (!m_wsServers.contains(id)) return false;
     m_wsServers[id]->stopListening();
     return true;
+}
+
+bool ConnectionManager::connectMqttClient(int id,
+                                          const QString &host,
+                                          quint16        port,
+                                          const QString &clientId,
+                                          const QString &username,
+                                          const QString &password)
+{
+    if (!m_mqttClients.contains(id)) {
+        qWarning() << "[ConnectionManager] connectMqttClient: unknown id" << id;
+        return false;
+    }
+
+    // Обновляем displayName до подключения — UI видит адрес сразу
+    if (m_infos.contains(id)) {
+        m_infos[id].displayName =
+            QString("MQTT #%1 — %2:%3").arg(id).arg(host).arg(port);
+        emit connectionInfoChanged(id);
+    }
+
+    m_mqttClients[id]->connectToBroker(host, port, clientId, username, password);
+    return true;
+}
+
+bool ConnectionManager::disconnectMqttClient(int id)
+{
+    if (!m_mqttClients.contains(id)) {
+        qWarning() << "[ConnectionManager] disconnectMqttClient: unknown id" << id;
+        return false;
+    }
+    m_mqttClients[id]->disconnectFromBroker();
+    return true;
+}
+
+bool ConnectionManager::subscribeMqtt(int id,
+                                      const QString &topicFilter,
+                                      quint8         qos)
+{
+    if (!m_mqttClients.contains(id)) {
+        qWarning() << "[ConnectionManager] subscribeMqtt: unknown id" << id;
+        return false;
+    }
+    return m_mqttClients[id]->subscribe(topicFilter, qos);
+}
+
+bool ConnectionManager::unsubscribeMqtt(int id, const QString &topicFilter)
+{
+    if (!m_mqttClients.contains(id)) {
+        qWarning() << "[ConnectionManager] unsubscribeMqtt: unknown id" << id;
+        return false;
+    }
+    return m_mqttClients[id]->unsubscribe(topicFilter);
+}
+
+bool ConnectionManager::publishMqtt(int id,
+                                    const QString    &topic,
+                                    const QByteArray &payload,
+                                    quint8            qos,
+                                    bool              retain)
+{
+    if (!m_mqttClients.contains(id)) {
+        qWarning() << "[ConnectionManager] publishMqtt: unknown id" << id;
+        return false;
+    }
+    return m_mqttClients[id]->publish(topic, payload, qos, retain);
 }
 
 // ---------------------------------------------------------------------------
@@ -457,6 +550,10 @@ bool ConnectionManager::removeConnection(int id)
         m_udpEndpoints[id]->unbind();
         m_udpEndpoints[id]->deleteLater();
         m_udpEndpoints.remove(id);
+    } else if (m_mqttClients.contains(id)) {
+        m_mqttClients[id]->disconnectFromBroker();
+        m_mqttClients[id]->deleteLater();
+        m_mqttClients.remove(id);
     }
 
     m_infos.remove(id);
@@ -499,6 +596,7 @@ bool ConnectionManager::hasTcpServer(int id)   const { return m_tcpServers.conta
 bool ConnectionManager::hasWsClient (int id)   const { return m_wsClients.contains(id);    }
 bool ConnectionManager::hasWsServer (int id)   const { return m_wsServers.contains(id);    }
 bool ConnectionManager::hasUdpEndpoint(int id) const { return m_udpEndpoints.contains(id); }
+bool ConnectionManager::hasMqttClient(int id)  const { return m_mqttClients.contains(id);  }
 
 QList<ClientSession> ConnectionManager::tcpServerSessions(int id) const
 {
@@ -510,6 +608,14 @@ QList<WsClientSession> ConnectionManager::wsServerSessions(int id) const
 {
     if (!m_wsServers.contains(id)) return {};
     return m_wsServers.value(id)->sessions();
+}
+
+QStringList ConnectionManager::mqttSubscriptions(int id) const
+{
+    if (!m_mqttClients.contains(id)) {
+        return QStringList();
+    }
+    return m_mqttClients.value(id)->subscriptions();
 }
 
 // ---------------------------------------------------------------------------
@@ -614,6 +720,30 @@ void ConnectionManager::onUdpStateChanged(int id, UdpEndpoint::State state)
     updateActiveState(id, state == UdpEndpoint::State::Bound);
 }
 
+void ConnectionManager::onMqttClientConnected(int id)
+{
+    updateActiveState(id, true);
+}
+
+void ConnectionManager::onMqttClientDisconnected(int id)
+{
+    updateActiveState(id, false);
+}
+
+void ConnectionManager::onMqttSubscriptionAdded(int connectionId,
+                                                const QString &topicFilter)
+{
+    // connectionId уже приходит от MqttClient напрямую (не через sender()) —
+    // сигнал subscriptionAdded в MqttClient уже несёт id в параметрах
+    emit mqttSubscriptionAdded(connectionId, topicFilter);
+}
+
+void ConnectionManager::onMqttSubscriptionRemoved(int connectionId,
+                                                  const QString &topicFilter)
+{
+    emit mqttSubscriptionRemoved(connectionId, topicFilter);
+}
+
 // ---------------------------------------------------------------------------
 // Приватные вспомогательные методы
 // ---------------------------------------------------------------------------
@@ -692,6 +822,28 @@ void ConnectionManager::connectUdpEndpointSignals(UdpEndpoint *endpoint)
 
     // errorOccurred пробрасываем напрямую — тот же паттерн что у TcpClient
     connect(endpoint, SIGNAL(errorOccurred(int, QString)),
+            this, SIGNAL(connectionInfoChanged(int)));
+}
+
+void ConnectionManager::connectMqttClientSignals(MqttClient *client)
+{
+    connect(client, SIGNAL(connected(int)),
+            this, SLOT(onMqttClientConnected(int)));
+
+    connect(client, SIGNAL(disconnected(int)),
+            this, SLOT(onMqttClientDisconnected(int)));
+
+    connect(client, SIGNAL(messageReceived(Message)),
+            this, SLOT(onMessageReceived(Message)));
+
+    connect(client, SIGNAL(subscriptionAdded(int, QString)),
+            this, SLOT(onMqttSubscriptionAdded(int, QString)));
+
+    connect(client, SIGNAL(subscriptionRemoved(int, QString)),
+            this, SLOT(onMqttSubscriptionRemoved(int, QString)));
+
+    // errorOccurred пробрасываем напрямую — тот же паттерн что у TcpClient/UDP
+    connect(client, SIGNAL(errorOccurred(int, QString)),
             this, SIGNAL(connectionInfoChanged(int)));
 }
 

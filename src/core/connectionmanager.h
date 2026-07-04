@@ -7,6 +7,7 @@
 #include "WsClient.h"
 #include "WsServer.h"
 #include "UdpEndpoint.h"
+#include "MqttClient.h"
 #include "ConnectionStats.h"
 
 #include <QObject>
@@ -95,6 +96,9 @@ public:
     // UDP
     int createUdpEndpoint();
 
+    // Mqtt
+    int createMqttClient();
+
     // Bind на локальный порт для приёма датаграмм
     bool bindUdpEndpoint(int id,
                          const QHostAddress &address = QHostAddress::Any,
@@ -143,6 +147,29 @@ public:
     // Отключить WebSocket-сервер
     bool stopWsServer(int id);
 
+    // Подключить Mqtt
+    bool connectMqttClient(int id,
+                           const QString &host,
+                           quint16        port,
+                           const QString &clientId  = QString(),
+                           const QString &username  = QString(),
+                           const QString &password  = QString());
+
+    // Отключить Mqtt
+    bool disconnectMqttClient(int id);
+
+    // Подписки
+    bool subscribeMqtt  (int id, const QString &topicFilter, quint8 qos = 0);
+    bool unsubscribeMqtt(int id, const QString &topicFilter);
+
+    // Публикация
+    bool publishMqtt(int id,
+                     const QString    &topic,
+                     const QByteArray &payload,
+                     quint8            qos    = 0,
+                     bool              retain = false);
+
+
     // --- Отправка данных ---
 
     bool sendToTcpClient(int id, const QByteArray &data);
@@ -185,6 +212,7 @@ public:
     bool hasWsClient(int id)    const;
     bool hasWsServer (int id)   const;
     bool hasUdpEndpoint(int id) const;
+    bool hasMqttClient(int id)  const;
 
     // Прямой доступ к сессиям сервера для обновления UI
     QList<ClientSession> tcpServerSessions(int id) const;
@@ -193,6 +221,9 @@ public:
     // Статистика соединения. Возвращает дефолтный ConnectionStats
     // если id не найден — не крашится при некорректном id
     ConnectionStats stats(int id) const;
+
+    // Список активных подписок для UI панели
+    QStringList mqttSubscriptions(int id) const;
 
     // Сбросить статистику конкретного соединения
     void resetStats(int id);
@@ -207,6 +238,10 @@ signals:
 
     // Мета-изменения конкретных соединений — UI обновляет статус
     void connectionInfoChanged(int id);
+
+    // Проброс подписок MQTT-клиента наружу — панель обновляет список
+    void mqttSubscriptionAdded  (int connectionId, const QString &topicFilter);
+    void mqttSubscriptionRemoved(int connectionId, const QString &topicFilter);
 
     // Обновление статистики — эмитируется после каждого сообщения
     // StatsWidget подписывается для live-обновления без polling
@@ -237,6 +272,8 @@ private slots:
     void onWsClientConnected(int id);
     void onWsClientDisconnected(int id);
     void onUdpStateChanged(int id, UdpEndpoint::State state);
+    void onMqttClientConnected   (int id);
+    void onMqttClientDisconnected(int id);
     void onWsServerListeningChanged(bool listening);
 
     // Единый обработчик messageReceived от всех типов
@@ -253,6 +290,10 @@ private slots:
                                    const QString &displayName);
     void onWsServerClientDisconnected(int sessionId,
                                       const QString &displayName);
+
+    // Проброс подписок — определяем отправителя через sender()
+    void onMqttSubscriptionAdded  (int connectionId, const QString &topicFilter);
+    void onMqttSubscriptionRemoved(int connectionId, const QString &topicFilter);
 
 private:
     // Генератор уникальных id — простой инкремент
@@ -273,6 +314,9 @@ private:
     // Подключение сигналов UDP
     void connectUdpEndpointSignals(UdpEndpoint *endpoint);
 
+    // Подключение сигналов Mqtt
+    void connectMqttClientSignals(MqttClient *client);
+
     // Обновить ConnectionInfo.isActive и emit connectionInfoChanged()
     void updateActiveState(int id, bool active);
 
@@ -285,6 +329,7 @@ private:
     QMap<int, WsClient  *>   m_wsClients;
     QMap<int, WsServer  *>   m_wsServers;
     QMap<int, UdpEndpoint *> m_udpEndpoints;
+    QMap<int, MqttClient *>  m_mqttClients;
 
     // Метаданные для UI — отдельно от объектов чтобы не тянуть
     // сетевые заголовки туда где нужна только отображаемая информация
