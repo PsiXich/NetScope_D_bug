@@ -1,6 +1,6 @@
 #include <QtTest>
 
-#include "models/messagelogmodel.h"
+#include "models/MessageLogModel.h"
 #include "core/Message.h"
 
 // ---------------------------------------------------------------------------
