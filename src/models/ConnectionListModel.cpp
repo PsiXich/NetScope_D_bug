@@ -81,9 +81,9 @@ QVariant ConnectionListModel::data(const QModelIndex &index, int role) const
     // Цвет текста: зелёный если активно, серый если нет
     case Qt::ForegroundRole: {
         if (info.isActive) {
-            return QBrush(QColor(34, 139, 34));    // тёмно-зелёный
+            return QBrush(QColor("#9ccbbd"));
         }
-        return QBrush(QColor(120, 120, 120));       // серый
+        return QBrush(QColor("#aba2bf"));
     }
 
     // Жирный шрифт для активных соединений

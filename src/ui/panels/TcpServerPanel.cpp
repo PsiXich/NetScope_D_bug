@@ -52,7 +52,7 @@ void TcpServerPanel::setupUi()
     m_stopBtn->setEnabled(false);
 
     m_statusLabel = new QLabel("○ Not listening", m_serverGroup);
-    m_statusLabel->setStyleSheet("color: #888;");
+    m_statusLabel->setStyleSheet("color: #aba2bf;");
 
     QHBoxLayout *addrRow = new QHBoxLayout;
     addrRow->addWidget(new QLabel("Address:", m_serverGroup));
@@ -174,7 +174,7 @@ void TcpServerPanel::onStartClicked()
         if (address.isNull()) {
             qWarning() << "[TcpServerPanel] invalid address:" << addressStr;
             m_statusLabel->setText("✗ Invalid address");
-            m_statusLabel->setStyleSheet("color: red;");
+            m_statusLabel->setStyleSheet("color: #ed91b0;");
             return;
         }
     }
@@ -252,7 +252,7 @@ void TcpServerPanel::onServerClientConnected(int serverId,
         );
     // Храним descriptor в UserRole для отправки конкретному клиенту
     item->setData(Qt::UserRole, static_cast<qint64>(descriptor));
-    item->setForeground(QColor(80, 200, 80));
+    item->setForeground(QColor("#9ccbbd"));
 
     m_clientsGroup->setTitle(
         QString("Clients (%1 connected)").arg(m_clientList->count())
@@ -305,10 +305,10 @@ void TcpServerPanel::updateUiState()
             QString("● Listening on port %1")
                 .arg(m_portSpin->value())
             );
-        m_statusLabel->setStyleSheet("color: #2a7a2a; font-weight: bold;");
+        m_statusLabel->setStyleSheet("color: #9ccbbd; font-weight: bold;");
     } else {
         m_statusLabel->setText("○ Not listening");
-        m_statusLabel->setStyleSheet("color: #888;");
+        m_statusLabel->setStyleSheet("color: #aba2bf;");
         m_sendBtn->setEnabled(false);
         m_clientList->clear();
         m_clientsGroup->setTitle("Clients (0 connected)");

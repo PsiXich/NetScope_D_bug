@@ -522,14 +522,14 @@ QColor MessageLogModel::colorForDirection(Message::Direction direction)
 {
     switch (direction) {
     case Message::Direction::Incoming:
-        // Мягкий зелёный — не перекрывает текст на светлой теме
-        return QColor(220, 255, 220, 180);
+        // Приглушённый зелёный оттенок для входящих сообщений
+        return QColor(85, 157, 145, 35);
     case Message::Direction::Outgoing:
-        // Мягкий синий
-        return QColor(220, 235, 255, 180);
+        // Сиреневый оттенок для исходящих сообщений
+        return QColor(161, 135, 210, 38);
     case Message::Direction::System:
         // Нейтральный серый
-        return QColor(245, 245, 245, 180);
+        return QColor(140, 130, 165, 18);
     }
-    return QColor(Qt::white);
+    return QColor(Qt::transparent);
 }

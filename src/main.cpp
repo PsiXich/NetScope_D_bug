@@ -1,4 +1,5 @@
 #include "ui/MainWindow.h"
+#include "ui/Theme.h"
 #include "core/Message.h"
 #include "utils/Logger.h"
 #include "core/connectionmanager.h"
@@ -75,6 +76,7 @@ int main(int argc, char *argv[])
     // QApplication должен быть создан до любых виджетов и до обращения
     // к QStandardPaths на некоторых платформах.
     QApplication app(argc, argv);
+    Theme::apply(app);
 
     // Метаданные приложения — используются QStandardPaths для формирования
     // путей к AppData и другим директориям

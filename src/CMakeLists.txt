@@ -44,6 +44,7 @@ set(APP_SOURCES
     main.cpp
 
     ui/MainWindow.cpp
+    ui/Theme.cpp
 
     ui/panels/TcpClientPanel.cpp
     ui/panels/TcpServerPanel.cpp

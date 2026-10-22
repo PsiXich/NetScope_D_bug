@@ -52,7 +52,7 @@ void UdpEndpointPanel::setupUi()
     m_unbindBtn->setEnabled(false);
 
     m_statusLabel = new QLabel("○ Not bound", m_localGroup);
-    m_statusLabel->setStyleSheet("color: #888;");
+    m_statusLabel->setStyleSheet("color: #aba2bf;");
 
     QHBoxLayout *localAddrRow = new QHBoxLayout;
     localAddrRow->addWidget(new QLabel("Address:", m_localGroup));
@@ -171,7 +171,7 @@ void UdpEndpointPanel::onBindClicked()
         if (address.isNull()) {
             qWarning() << "[UdpEndpointPanel] invalid local address:" << addressStr;
             m_statusLabel->setText("✗ Invalid address");
-            m_statusLabel->setStyleSheet("color: red;");
+            m_statusLabel->setStyleSheet("color: #ed91b0;");
             return;
         }
     }
@@ -268,10 +268,10 @@ void UdpEndpointPanel::updateUiState()
     // Статус
     if (bound) {
         m_statusLabel->setText("● Bound");
-        m_statusLabel->setStyleSheet("color: #2a7a2a; font-weight: bold;");
+        m_statusLabel->setStyleSheet("color: #9ccbbd; font-weight: bold;");
     } else {
         m_statusLabel->setText("○ Not bound");
-        m_statusLabel->setStyleSheet("color: #888;");
+        m_statusLabel->setStyleSheet("color: #aba2bf;");
     }
 
     // Remote и Send доступны всегда — можно слать без bind

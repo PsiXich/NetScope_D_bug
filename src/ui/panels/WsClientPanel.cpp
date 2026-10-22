@@ -48,7 +48,7 @@ void WsClientPanel::setupUi()
     m_disconnectBtn->setEnabled(false);
 
     m_statusLabel = new QLabel("○ Disconnected", m_connectionGroup);
-    m_statusLabel->setStyleSheet("color: #888;");
+    m_statusLabel->setStyleSheet("color: #aba2bf;");
 
     // --- Реконнект ---
     m_reconnectCheck = new QCheckBox("Auto-reconnect", m_connectionGroup);
@@ -201,7 +201,7 @@ void WsClientPanel::onConnectClicked()
 
     if (!url.isValid()) {
         m_statusLabel->setText("✗ Invalid URL");
-        m_statusLabel->setStyleSheet("color: red;");
+        m_statusLabel->setStyleSheet("color: #ed91b0;");
         return;
     }
 
@@ -279,10 +279,10 @@ void WsClientPanel::updateUiState()
 
     if (active) {
         m_statusLabel->setText("● Connected");
-        m_statusLabel->setStyleSheet("color: #2a7a2a; font-weight: bold;");
+        m_statusLabel->setStyleSheet("color: #9ccbbd; font-weight: bold;");
     } else {
         m_statusLabel->setText("○ Disconnected");
-        m_statusLabel->setStyleSheet("color: #888;");
+        m_statusLabel->setStyleSheet("color: #aba2bf;");
     }
 }
 

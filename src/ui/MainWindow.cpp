@@ -72,7 +72,7 @@ void MainWindow::setupUi()
         m_panelStack
         );
     placeholder->setAlignment(Qt::AlignCenter);
-    placeholder->setStyleSheet("color: #888; font-size: 13px;");
+    placeholder->setStyleSheet("color: #aba2bf; font-size: 13px;");
     m_panelStack->addWidget(placeholder);   // index 0 — всегда placeholder
 
     // --- Лог сообщений ---

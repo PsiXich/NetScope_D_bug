@@ -143,7 +143,7 @@ void HexViewer::setupUi()
     m_copyBtn->setToolTip("Copy content to clipboard");
 
     m_sizeLabel = new QLabel("0 bytes", this);
-    m_sizeLabel->setStyleSheet("color: #666;");
+    m_sizeLabel->setStyleSheet("color: #aba2bf;");
     m_sizeLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     QHBoxLayout *toolRow = new QHBoxLayout;

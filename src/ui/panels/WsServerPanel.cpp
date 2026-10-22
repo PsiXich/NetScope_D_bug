@@ -53,13 +53,13 @@ void WsServerPanel::setupUi()
     m_stopBtn->setEnabled(false);
 
     m_statusLabel = new QLabel("○ Not listening", m_serverGroup);
-    m_statusLabel->setStyleSheet("color: #888;");
+    m_statusLabel->setStyleSheet("color: #aba2bf;");
 
     // URL-строка для удобного копирования в WsClientPanel
     m_urlLabel = new QLabel(m_serverGroup);
     m_urlLabel->setText("URL: —");
     m_urlLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    m_urlLabel->setStyleSheet("color: #888; font-family: monospace;");
+    m_urlLabel->setStyleSheet("color: #aba2bf; font-family: monospace;");
 
     // Строка: Address | Port
     QHBoxLayout *addrRow = new QHBoxLayout;
@@ -201,7 +201,7 @@ void WsServerPanel::onStartClicked()
         if (address.isNull()) {
             qWarning() << "[WsServerPanel] invalid address:" << addressStr;
             m_statusLabel->setText("✗ Invalid address");
-            m_statusLabel->setStyleSheet("color: red;");
+            m_statusLabel->setStyleSheet("color: #ed91b0;");
             return;
         }
     }
@@ -317,7 +317,7 @@ void WsServerPanel::onWsServerClientConnected(int serverId,
         );
     // Храним sessionId в UserRole для отправки конкретному клиенту
     item->setData(Qt::UserRole, sessionId);
-    item->setForeground(QColor(80, 200, 80));
+    item->setForeground(QColor("#9ccbbd"));
 
     m_clientsGroup->setTitle(
         QString("Clients (%1 connected)").arg(m_clientList->count())
@@ -379,7 +379,7 @@ void WsServerPanel::updateUiState()
         m_statusLabel->setText(
             QString("● Listening on port %1").arg(actualPort)
             );
-        m_statusLabel->setStyleSheet("color: #2a7a2a; font-weight: bold;");
+        m_statusLabel->setStyleSheet("color: #9ccbbd; font-weight: bold;");
 
         // Показываем URL для копирования в WsClientPanel
         m_urlLabel->setText(
@@ -392,9 +392,9 @@ void WsServerPanel::updateUiState()
         Q_UNUSED(sessions)
     } else {
         m_statusLabel->setText("○ Not listening");
-        m_statusLabel->setStyleSheet("color: #888;");
+        m_statusLabel->setStyleSheet("color: #aba2bf;");
         m_urlLabel->setText("URL: —");
-        m_urlLabel->setStyleSheet("color: #888; font-family: monospace;");
+        m_urlLabel->setStyleSheet("color: #aba2bf; font-family: monospace;");
         m_sendBtn->setEnabled(false);
         m_clientList->clear();
         m_clientsGroup->setTitle("Clients (0 connected)");

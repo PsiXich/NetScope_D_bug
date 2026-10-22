@@ -114,7 +114,7 @@ void MessageLogView::setupUi()
     m_clearBtn->setFixedWidth(60);
 
     m_countLabel = new QLabel("0 messages", this);
-    m_countLabel->setStyleSheet("color: #666;");
+    m_countLabel->setStyleSheet("color: #aba2bf;");
     m_countLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     // --- Компоновка панели фильтров ---
