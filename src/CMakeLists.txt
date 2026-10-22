@@ -50,6 +50,7 @@ set(APP_SOURCES
     ui/panels/WsClientPanel.cpp
     ui/panels/WsServerPanel.cpp
     ui/panels/UdpEndpointPanel.cpp
+    ui/panels/MqttClientPanel.cpp
 
     ui/widgets/MessageLogView.cpp
     ui/widgets/HexViewer.cpp

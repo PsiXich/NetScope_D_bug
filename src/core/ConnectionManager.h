@@ -213,6 +213,7 @@ public:
     bool hasWsServer (int id)   const;
     bool hasUdpEndpoint(int id) const;
     bool hasMqttClient(int id)  const;
+    MqttClient::State mqttState(int id) const;
 
     // Прямой доступ к сессиям сервера для обновления UI
     QList<ClientSession> tcpServerSessions(int id) const;
@@ -241,6 +242,7 @@ signals:
 
     // Проброс подписок MQTT-клиента наружу — панель обновляет список
     void mqttSubscriptionAdded  (int connectionId, const QString &topicFilter);
+    void mqttError(int connectionId, const QString &message);
     void mqttSubscriptionRemoved(int connectionId, const QString &topicFilter);
 
     // Обновление статистики — эмитируется после каждого сообщения

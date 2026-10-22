@@ -44,7 +44,8 @@ public:
         ColDirection = 3,
         ColSize      = 4,
         ColData      = 5,
-        ColCount     = 6    // всегда последний — используется в columnCount()
+        ColTopic     = 6,
+        ColCount     = 7    // всегда последний — используется в columnCount()
     };
 
     // Кастомные роли для доступа к сырым данным из делегата

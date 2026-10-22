@@ -61,6 +61,8 @@ QVariant MessageLogModel::data(const QModelIndex &index, int role) const
             return msg.connectionId;
         case ColProtocol:
             return formatProtocol(msg.protocol);
+        case ColTopic:
+            return msg.topic;
         case ColDirection:
             return formatDirection(msg.direction);
         case ColSize:
@@ -142,6 +144,7 @@ QVariant MessageLogModel::headerData(int section,
 
     switch (section) {
     case ColTime:      return QStringLiteral("Time");
+    case ColTopic:     return QStringLiteral("Topic");
     case ColId:        return QStringLiteral("ID");
     case ColProtocol:  return QStringLiteral("Protocol");
     case ColDirection: return QStringLiteral("Direction");

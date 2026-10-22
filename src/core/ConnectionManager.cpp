@@ -825,8 +825,19 @@ void ConnectionManager::connectUdpEndpointSignals(UdpEndpoint *endpoint)
             this, SIGNAL(connectionInfoChanged(int)));
 }
 
+MqttClient::State ConnectionManager::mqttState(int id) const
+{
+    return m_mqttClients.contains(id) ? m_mqttClients.value(id)->state()
+                                     : MqttClient::State::Disconnected;
+}
+
 void ConnectionManager::connectMqttClientSignals(MqttClient *client)
 {
+    connect(client, &MqttClient::stateChanged, this, [this](int id, MqttClient::State state) {
+        updateActiveState(id, state == MqttClient::State::Connected);
+        emit connectionInfoChanged(id);
+    });
+    connect(client, &MqttClient::errorOccurred, this, &ConnectionManager::mqttError);
     connect(client, SIGNAL(connected(int)),
             this, SLOT(onMqttClientConnected(int)));
 

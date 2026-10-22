@@ -53,7 +53,7 @@ public:
 public slots:
     // Подключиться к брокеру
     // clientId — уникальный идентификатор клиента на брокере
-    // Пустой clientId — брокер назначит автоматически
+    // Пустой clientId — генерируем уникальный идентификатор
     // username/password — пустые если брокер не требует авторизации
     void connectToBroker(const QString &host,
                          quint16        port,
@@ -103,12 +103,13 @@ private slots:
     void onConnected();
     void onDisconnected();
     void onErrorChanged(QMqttClient::ClientError error);
+    void onClientStateChanged(QMqttClient::ClientState state);
 
     // Вызывается для каждого входящего сообщения от брокера
-    void onMessageReceived(const QMqttMessage &message);
+    void onMessageReceived(const QByteArray &data, const QMqttTopicName &topic);
 
 private:
-    void setState(State state);
+    static State fromQtState(QMqttClient::ClientState state);
 
     QMqttClient                        *m_client { nullptr };
 
@@ -117,7 +118,6 @@ private:
     QMap<QString, QMqttSubscription *>  m_subscriptions;
 
     int     m_connectionId;
-    State   m_state { State::Disconnected };
 };
 
 #endif // NETSCOPE_MQTTCLIENT_H

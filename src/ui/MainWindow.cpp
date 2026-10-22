@@ -6,6 +6,7 @@
 #include "ui/widgets/MessageLogView.h"
 #include "ui/panels/WsServerPanel.h"
 #include "ui/panels/UdpEndpointPanel.h"
+#include "ui/panels/MqttClientPanel.h"
 
 #include <QListView>
 #include <QStackedWidget>
@@ -115,6 +116,7 @@ void MainWindow::setupToolBar()
 
     m_actAddUdp = toolBar->addAction("+ UDP");
     m_actAddUdp->setToolTip("Create a new UDP endpoint");
+    connect(toolBar->addAction("+ MQTT"), &QAction::triggered, this, &MainWindow::onAddMqttClient);
 
     toolBar->addSeparator();
 
@@ -249,6 +251,12 @@ void MainWindow::onAddUdpEndpoint()
     qDebug() << "[MainWindow] created Udp id=" << id;
 }
 
+void MainWindow::onAddMqttClient()
+{
+    const int id = m_manager->createMqttClient();
+    m_connectionList->setCurrentIndex(m_connectionModel->index(m_connectionModel->rowById(id)));
+}
+
 void MainWindow::onConnectionSelected(const QModelIndex &index)
 {
     if (!index.isValid()) {
@@ -350,6 +358,8 @@ void MainWindow::switchToPanel(int connectionId)
         panel = new WsServerPanel(connectionId, m_manager, m_panelStack);
     } else if (m_manager->hasUdpEndpoint(connectionId)) {
         panel = new UdpEndpointPanel(connectionId, m_manager, m_panelStack);
+    } else if (m_manager->hasMqttClient(connectionId)) {
+        panel = new MqttClientPanel(connectionId, m_manager, m_panelStack);
     } else {
         qWarning() << "[MainWindow] switchToPanel: unknown id" << connectionId;
         return;

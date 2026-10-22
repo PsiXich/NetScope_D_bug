@@ -225,7 +225,10 @@ void MessageLogView::configureTableView()
 
     // --- Ширины колонок ---
     QHeaderView *hdr = m_tableView->horizontalHeader();
-    hdr->setStretchLastSection(true);   // колонка Data занимает остаток
+    hdr->setStretchLastSection(false);
+    hdr->moveSection(hdr->visualIndex(MessageLogModel::ColTopic), hdr->visualIndex(MessageLogModel::ColData));
+    hdr->setSectionResizeMode(MessageLogModel::ColData, QHeaderView::Stretch);
+    m_tableView->setColumnWidth(MessageLogModel::ColTopic, 160);
 
     m_tableView->setColumnWidth(MessageLogModel::ColTime,      90);
     m_tableView->setColumnWidth(MessageLogModel::ColId,        35);

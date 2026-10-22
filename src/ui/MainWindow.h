@@ -49,6 +49,7 @@ private slots:
     void onAddWsClient();
     void onAddWsServer();
     void onAddUdpEndpoint();
+    void onAddMqttClient();
 
     // Выбор соединения в списке — переключает активную панель
     void onConnectionSelected(const QModelIndex &index);

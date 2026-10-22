@@ -16,6 +16,9 @@ MqttClient::MqttClient(int connectionId, QObject *parent)
     // cleanSession = true — не сохраняем сессию между переподключениями
     // Брокер не будет ставить в очередь пропущенные сообщения
     m_client->setCleanSession(true);
+    m_client->setProtocolVersion(QMqttClient::MQTT_3_1_1);
+    connect(m_client, &QMqttClient::messageReceived,
+            this, &MqttClient::onMessageReceived);
 
     connect(m_client, &QMqttClient::connected,
             this, &MqttClient::onConnected);
@@ -27,18 +30,17 @@ MqttClient::MqttClient(int connectionId, QObject *parent)
     // Не перегружен, используем новый синтаксис
     connect(m_client, &QMqttClient::errorChanged,
             this, &MqttClient::onErrorChanged);
+
+    connect(m_client, &QMqttClient::stateChanged,
+            this, &MqttClient::onClientStateChanged);
 }
 
 MqttClient::~MqttClient()
 {
-    // Явно отписываемся от всех топиков перед удалением —
-    // это освобождает ресурсы на стороне брокера
-    const QStringList filters = m_subscriptions.keys();
-    for (const QString &filter : filters) {
-        if (m_subscriptions[filter]) {
-            m_subscriptions[filter]->unsubscribe();
-        }
-    }
+    // Clean session subscriptions disappear when the connection closes.
+    // Do not emit callbacks while this object is being destroyed.
+    m_client->disconnect(this);
+    for (auto *sub : m_subscriptions) sub->disconnect(this);
     m_subscriptions.clear();
 
     // QMqttClient удалится автоматически (parent = this)
@@ -54,7 +56,7 @@ MqttClient::~MqttClient()
 
 MqttClient::State MqttClient::state() const
 {
-    return m_state;
+    return fromQtState(m_client->state());
 }
 
 int MqttClient::connectionId() const
@@ -74,7 +76,11 @@ quint16 MqttClient::brokerPort() const
 
 QStringList MqttClient::subscriptions() const
 {
-    return m_subscriptions.keys();
+    QStringList active;
+    for (auto it = m_subscriptions.cbegin(); it != m_subscriptions.cend(); ++it)
+        if (it.value()->state() == QMqttSubscription::Subscribed)
+            active.append(it.key());
+    return active;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,13 +93,17 @@ void MqttClient::connectToBroker(const QString &host,
                                  const QString &username,
                                  const QString &password)
 {
-    if (m_state != State::Disconnected) {
+    if (state() != State::Disconnected) {
         qDebug() << "[MqttClient] id=" << m_connectionId
                  << "already connecting or connected, ignoring.";
         return;
     }
 
-    m_client->setHostname(host);
+    if (host.trimmed().isEmpty() || port == 0) {
+        emit errorOccurred(m_connectionId, "Enter a broker host and a valid port.");
+        return;
+    }
+    m_client->setHostname(host.trimmed());
     m_client->setPort(port);
 
     // Если clientId пустой — генерируем уникальный
@@ -108,13 +118,9 @@ void MqttClient::connectToBroker(const QString &host,
         m_client->setClientId(clientId);
     }
 
-    // Устанавливаем учётные данные если заданы
-    if (!username.isEmpty()) {
-        m_client->setUsername(username);
-        m_client->setPassword(password);
-    }
-
-    setState(State::Connecting);
+    // Устанавливаем учётные данные
+    m_client->setUsername(username);
+    m_client->setPassword(password);
 
     qDebug() << "[MqttClient] id=" << m_connectionId
              << "connecting to" << host << "port" << port
@@ -135,13 +141,24 @@ void MqttClient::disconnectFromBroker()
 
 bool MqttClient::subscribe(const QString &topicFilter, quint8 qos)
 {
-    if (m_state != State::Connected) {
+    if (state() != State::Connected) {
         qWarning() << "[MqttClient] id=" << m_connectionId
                    << "subscribe() called while not connected.";
         return false;
     }
 
-    if (topicFilter.isEmpty()) {
+    if (qos > 2) {
+        qWarning() << "[MqttClient] id=" << m_connectionId
+                   << "subscribe(): invalid QoS:" << qos;
+        return false;
+    }
+
+    const QMqttTopicFilter filter(topicFilter);
+
+    if (!filter.isValid()) {
+        qWarning() << "[MqttClient] id=" << m_connectionId
+                   << "subscribe(): invalid topic filter:"
+                   << topicFilter;
         return false;
     }
 
@@ -152,7 +169,6 @@ bool MqttClient::subscribe(const QString &topicFilter, quint8 qos)
         return false;
     }
 
-    QMqttTopicFilter filter(topicFilter);
     QMqttSubscription *sub = m_client->subscribe(filter, qos);
 
     if (!sub) {
@@ -163,19 +179,26 @@ bool MqttClient::subscribe(const QString &topicFilter, quint8 qos)
 
     m_subscriptions.insert(topicFilter, sub);
 
-    // Подключаем сигнал входящего сообщения от этой подписки
-    connect(sub, &QMqttSubscription::messageReceived,
-            this, &MqttClient::onMessageReceived);
-
-    qDebug() << "[MqttClient] id=" << m_connectionId
-             << "subscribed to" << topicFilter << "QoS" << qos;
-
-    emit messageReceived(Message::system(
-        m_connectionId,
-        Message::Protocol::Mqtt,
-        QString("Subscribed to '%1' (QoS %2)").arg(topicFilter).arg(qos)
-        ));
-    emit subscriptionAdded(m_connectionId, topicFilter);
+    // Only report success after SUBACK; a broker may reject the subscription.
+    connect(sub, &QMqttSubscription::stateChanged, this,
+            [this, sub, topicFilter](QMqttSubscription::SubscriptionState state) {
+        if (state == QMqttSubscription::Subscribed) {
+            emit messageReceived(Message::system(m_connectionId, Message::Protocol::Mqtt,
+                QString("Subscribed to '%1' (QoS %2)").arg(topicFilter).arg(sub->qos())));
+            emit subscriptionAdded(m_connectionId, topicFilter);
+        } else if (state == QMqttSubscription::Error) {
+            // Qt keeps a rejected subscription cached until UNSUBACK.
+            // Retain our entry during cleanup to prevent duplicate retries.
+            sub->setProperty("netscopeRejected", true);
+            sub->unsubscribe();
+            emit errorOccurred(m_connectionId, QString("Subscription rejected: %1").arg(topicFilter));
+        } else if (state == QMqttSubscription::Unsubscribed) {
+            m_subscriptions.remove(topicFilter);
+            sub->disconnect(this);
+            if (!sub->property("netscopeRejected").toBool())
+                emit subscriptionRemoved(m_connectionId, topicFilter);
+        }
+    });
 
     return true;
 }
@@ -188,7 +211,7 @@ bool MqttClient::unsubscribe(const QString &topicFilter)
         return false;
     }
 
-    QMqttSubscription *sub = m_subscriptions.take(topicFilter);
+    QMqttSubscription *sub = m_subscriptions.value(topicFilter);
 
     if (sub) {
         sub->unsubscribe();
@@ -203,7 +226,6 @@ bool MqttClient::unsubscribe(const QString &topicFilter)
         Message::Protocol::Mqtt,
         QString("Unsubscribed from '%1'").arg(topicFilter)
         ));
-    emit subscriptionRemoved(m_connectionId, topicFilter);
 
     return true;
 }
@@ -213,7 +235,7 @@ bool MqttClient::publish(const QString    &topic,
                          quint8            qos,
                          bool              retain)
 {
-    if (m_state != State::Connected) {
+    if (state() != State::Connected) {
         qWarning() << "[MqttClient] id=" << m_connectionId
                    << "publish() called while not connected.";
         return false;
@@ -225,12 +247,22 @@ bool MqttClient::publish(const QString    &topic,
         return false;
     }
 
-    if (payload.isEmpty()) {
+    if (qos > 2) {
+        qWarning() << "[MqttClient] id=" << m_connectionId
+                   << "publish(): invalid QoS:" << qos;
+        return false;
+    }
+
+    const QMqttTopicName topicName(topic);
+
+    if (!topicName.isValid()) {
+        qWarning() << "[MqttClient] id=" << m_connectionId
+                   << "publish(): invalid topic:" << topic;
         return false;
     }
 
     const qint32 result = m_client->publish(
-        QMqttTopicName(topic),
+        topicName,
         payload,
         qos,
         retain
@@ -247,7 +279,7 @@ bool MqttClient::publish(const QString    &topic,
         m_connectionId,
         Message::Protocol::Mqtt,
         payload,
-        false,  // isText определяет получатель — UI может переключить
+        !payload.contains('\0') && QString::fromUtf8(payload).toUtf8() == payload,
         topic
         ));
 
@@ -260,7 +292,6 @@ bool MqttClient::publish(const QString    &topic,
 
 void MqttClient::onConnected()
 {
-    setState(State::Connected);
 
     qDebug() << "[MqttClient] id=" << m_connectionId
              << "connected to" << m_client->hostname()
@@ -283,8 +314,6 @@ void MqttClient::onDisconnected()
     // subscriptionRemoved не эмитируем для каждой — это было бы
     // избыточно, UI и так знает что при disconnect всё сбрасывается
     m_subscriptions.clear();
-
-    setState(State::Disconnected);
 
     qDebug() << "[MqttClient] id=" << m_connectionId << "disconnected";
 
@@ -335,15 +364,11 @@ void MqttClient::onErrorChanged(QMqttClient::ClientError error)
         QString("Error: %1").arg(errStr)
         ));
     emit errorOccurred(m_connectionId, errStr);
-
-    // При ошибке переходим в Disconnected
-    setState(State::Disconnected);
 }
 
-void MqttClient::onMessageReceived(const QMqttMessage &message)
+void MqttClient::onMessageReceived(const QByteArray &data, const QMqttTopicName &topicName)
 {
-    const QString topic   = message.topic().name();
-    const QByteArray data = message.payload();
+    const QString topic = topicName.name();
 
     qDebug() << "[MqttClient] id=" << m_connectionId
              << "message on topic:" << topic
@@ -355,20 +380,39 @@ void MqttClient::onMessageReceived(const QMqttMessage &message)
         m_connectionId,
         Message::Protocol::Mqtt,
         data,
-        false,  // isText: MQTT не различает text/binary на уровне протокола
+        !data.contains('\0') && QString::fromUtf8(data).toUtf8() == data,
         topic
         ));
+}
+
+void MqttClient::onClientStateChanged(
+    QMqttClient::ClientState state)
+{
+    if (state == QMqttClient::Disconnected) {
+        for (auto *sub : m_subscriptions)
+            sub->disconnect(this);
+        m_subscriptions.clear();
+    }
+    emit stateChanged(m_connectionId, fromQtState(state));
 }
 
 // ---------------------------------------------------------------------------
 // Приватные вспомогательные методы
 // ---------------------------------------------------------------------------
 
-void MqttClient::setState(State state)
+MqttClient::State MqttClient::fromQtState(
+    QMqttClient::ClientState state)
 {
-    if (m_state == state) {
-        return;
+    switch (state) {
+    case QMqttClient::Disconnected:
+        return State::Disconnected;
+
+    case QMqttClient::Connecting:
+        return State::Connecting;
+
+    case QMqttClient::Connected:
+        return State::Connected;
     }
-    m_state = state;
-    emit stateChanged(m_connectionId, m_state);
+
+    return State::Disconnected;
 }

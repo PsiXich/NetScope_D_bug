@@ -36,7 +36,7 @@ function(netscope_add_test)
 
     add_test(
         NAME    ${ARG_NAME}
-        COMMAND ${ARG_NAME} -v
+        COMMAND ${ARG_NAME} -v1
     )
 
     set_tests_properties(${ARG_NAME} PROPERTIES TIMEOUT 30)
@@ -77,3 +77,9 @@ netscope_add_test(
     NAME    tst_udpendpoint
     SOURCES tst_udpendpoint.cpp
 )
+
+netscope_add_test(
+    NAME tst_mqttclient
+    SOURCES tst_mqttclient.cpp ../src/ui/panels/MqttClientPanel.cpp
+)
+target_link_libraries(tst_mqttclient PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
