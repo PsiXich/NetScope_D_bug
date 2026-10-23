@@ -58,6 +58,10 @@ set(APP_SOURCES
 )
 
 add_executable(netscope_app ${APP_SOURCES})
+if(WIN32)
+    configure_file(windows-version.rc.in ${CMAKE_CURRENT_BINARY_DIR}/windows-version.rc @ONLY)
+    target_sources(netscope_app PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/windows-version.rc)
+endif()
 
 target_link_libraries(netscope_app
     PRIVATE

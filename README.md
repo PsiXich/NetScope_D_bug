@@ -1,6 +1,6 @@
 # NetScope Debug
 
-> A lightweight network debugging tool for TCP and WebSocket development.
+> A lightweight network debugging tool for TCP, WebSocket, UDP and MQTT development.
 
 NetScope Debug started as a personal project created to simplify day-to-day network debugging tasks. During development I often needed a small utility that could quickly connect to a TCP or WebSocket endpoint, inspect incoming traffic, send custom messages and test server behavior without launching heavyweight tools.
 
@@ -19,13 +19,22 @@ Whether you're debugging a backend service, testing a WebSocket API, experimenti
 * WebSocket Client
 * WebSocket Server
 
+* UDP endpoint (send, receive and broadcast)
+* MQTT 3.1.1 client (subscribe/publish, QoS 0/1/2, retain)
+
+### Appearance and Filtering
+
+* Dark violet theme with readable status colors
+* Journal filters by connection, protocol, direction and payload text
+* MQTT topic column and topic filters with `+` / `#` wildcards
+
 ### 🔌 Connection Management
 
 Create and manage multiple connections simultaneously through a unified interface.
 
 * Multiple active connections
 * Connection monitoring
-* Automatic reconnection
+* Automatic reconnection for TCP and WebSocket clients
 * Centralized connection manager
 
 ### 📡 Traffic Inspection
@@ -52,6 +61,7 @@ Observe network traffic in real time while testing your applications.
 * Qt Widgets
 * Qt Network
 * Qt WebSockets
+* Qt MQTT
 * CMake
 * Qt Test
 
@@ -61,13 +71,27 @@ Observe network traffic in real time while testing your applications.
 
 ### Download Release
 
-If you only want to use the application, download the latest installer from the **Releases** section.
+Download [NetScope v1.1](https://github.com/PsiXich/NetScope_D_bug/releases/tag/v1.1)
+for Windows 10/11 x64. Run `NetScope_v1.1_Setup.exe` to install or update v1.0.
+Qt, Qt Creator and MinGW are not required on the recipient's computer.
+The release includes the matching source archive and SHA-256 checksums.
 
-**Latest Release**
+A portable ZIP can also be built with the script below: extract the entire archive
+and run `netscope.exe`. Keep the DLLs and plugin folders next to the executable.
+Settings and logs are stored in the user's Windows profile. The executable and
+installer are unsigned.
 
-`NetScope_v1.0_Setup.exe`
+### Create the Windows package
 
-The installer was created using Inno Setup and includes everything required to run the application on Windows.
+With Qt 6.8.3 MinGW and Qt MQTT installed, run:
+
+```powershell
+./scripts/package-windows.ps1
+```
+
+The script builds Release, deploys Qt and MinGW dependencies with `windeployqt`,
+and writes the portable ZIP, source ZIP and SHA-256 checksums under `build/packages`.
+See `packaging/README.txt` for distribution and testing notes.
 
 ### Build From Source
 
@@ -161,6 +185,8 @@ The project includes tests for the most important components:
 * WebSocket Client
 * WebSocket Server
 * MessageLogModel
+* UDP endpoint
+* MQTT lifecycle, broker rejections and panel workflows
 
 ---
 
@@ -179,16 +205,25 @@ The goal of this project was not only to create a useful debugging utility but a
 
 ## 🔮 Future Plans
 
-* UDP support
-* MQTT support
 * Session persistence
 * Traffic export/import
-* Packet filtering
 * Protocol analyzers
+* Advanced packet filtering beyond the existing journal filters
+* Selectable color themes
+* MQTT TLS, persistent sessions and automatic reconnect
 
 ---
 
 ## 📦 Release Notes
+
+### v1.1
+
+* Add UDP endpoint controls and tests.
+* Complete the MQTT client panel, confirmed subscriptions, publishing and error handling.
+* Add MQTT topic display and filtering; retain journal text/protocol/direction filters.
+* Introduce the dark violet application theme.
+* Provide a Windows x64 installer and portable packaging script with Qt and MinGW runtime dependencies.
+* License NetScope under GPL-3.0-only; include source and third-party notices.
 
 ### v1.0
 
@@ -209,4 +244,9 @@ Features included:
 
 ## License
 
-This project is available for educational, learning and development purposes.
+Copyright (c) 2026 Artyom (PsiXich).
+
+NetScope Debug is licensed under **GNU GPL version 3 only (GPL-3.0-only)**.
+See [LICENSE](LICENSE). You may use, modify and redistribute it under those terms.
+Qt and other bundled components retain their respective licenses. Distribute the
+matching source archive with the binary package; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
