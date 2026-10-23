@@ -10,9 +10,9 @@ Whether you're debugging a backend service, testing a WebSocket API, experimenti
 
 ---
 
-## ✨ Features
+## Features
 
-### 🌐 Supported Protocols
+### Supported Protocols
 
 * TCP Client
 * TCP Server
@@ -28,7 +28,7 @@ Whether you're debugging a backend service, testing a WebSocket API, experimenti
 * Journal filters by connection, protocol, direction and payload text
 * MQTT topic column and topic filters with `+` / `#` wildcards
 
-### 🔌 Connection Management
+### Connection Management
 
 Create and manage multiple connections simultaneously through a unified interface.
 
@@ -37,7 +37,7 @@ Create and manage multiple connections simultaneously through a unified interfac
 * Automatic reconnection for TCP and WebSocket clients
 * Centralized connection manager
 
-### 📡 Traffic Inspection
+### Traffic Inspection
 
 Observe network traffic in real time while testing your applications.
 
@@ -47,7 +47,7 @@ Observe network traffic in real time while testing your applications.
 * Timestamped events
 * System activity tracking
 
-### 📨 Data Transmission
+### Data Transmission
 
 * Text messages
 * Binary payloads
@@ -55,7 +55,7 @@ Observe network traffic in real time while testing your applications.
 * WebSocket binary frames
 * Broadcast messaging for server instances
 
-### ⚙️ Built With
+### Built With
 
 * C++14
 * Qt Widgets
@@ -67,11 +67,11 @@ Observe network traffic in real time while testing your applications.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Download Release
 
-Download [NetScope v1.1](https://github.com/PsiXich/NetScope_D_bug/releases/tag/v1.1)
+Download the [latest NetScope release](https://github.com/PsiXich/NetScope_D_bug/releases/latest)
 for Windows 10/11 x64. Run `NetScope_v1.1_Setup.exe` to install or update v1.0.
 Qt, Qt Creator and MinGW are not required on the recipient's computer.
 The release includes the matching source archive and SHA-256 checksums.
@@ -116,7 +116,7 @@ the old configuration persists, clear the CMake configuration and reconfigure.
 Required Qt modules: Core, Gui, Widgets, Network, WebSockets, Mqtt and Test.
 Qt 6 uses C++17, which its CMake targets enable automatically.
 
-Qt MQTT 6.8.3 Debug and Release libraries are installed locally in
+The example below assumes Qt MQTT 6.8.3 Debug and Release libraries in
 `D:/Qt/6.8.3/mingw_64`. To rebuild the module using the sources included with Qt,
 run the following in PowerShell from the project directory:
 
@@ -159,7 +159,7 @@ and need no installed broker or internet access.
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 src/
@@ -175,7 +175,7 @@ tests/
 
 ---
 
-## 🧪 Automated Tests
+## Automated Tests
 
 The project includes tests for the most important components:
 
@@ -190,7 +190,7 @@ The project includes tests for the most important components:
 
 ---
 
-## 🎯 Why I Built This
+## Why I Built This
 
 The goal of this project was not only to create a useful debugging utility but also to deepen my understanding of:
 
@@ -203,7 +203,7 @@ The goal of this project was not only to create a useful debugging utility but a
 
 ---
 
-## 🔮 Future Plans
+## Future Plans
 
 * Session persistence
 * Traffic export/import
@@ -214,7 +214,7 @@ The goal of this project was not only to create a useful debugging utility but a
 
 ---
 
-## 📦 Release Notes
+## Release Notes
 
 ### v1.1
 
